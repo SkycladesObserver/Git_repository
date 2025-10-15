@@ -90,7 +90,7 @@ class ControlsPanel(QWidget):
         stack_layout.addLayout(stack_value_layout)
         stack_layout.addLayout(stack_button_layout)
         self.stack_group.setLayout(stack_layout)
-        self.stack_group.setVisible(False)  # 默认隐藏
+        self.stack_group.setVisible(False)
 
         # 队列操作组
         self.queue_group = QGroupBox("队列操作")
@@ -118,13 +118,49 @@ class ControlsPanel(QWidget):
         queue_layout.addLayout(queue_value_layout)
         queue_layout.addLayout(queue_button_layout)
         self.queue_group.setLayout(queue_layout)
-        self.queue_group.setVisible(False)  # 默认隐藏
+        self.queue_group.setVisible(False)
+
+        # 二叉树操作组
+        self.binary_tree_group = QGroupBox("二叉树操作")
+        binary_tree_layout = QVBoxLayout()
+
+        # 二叉树值输入
+        bt_value_layout = QHBoxLayout()
+        bt_value_layout.addWidget(QLabel("值:"))
+        self.bt_value_spin = QSpinBox()
+        self.bt_value_spin.setRange(-999, 999)
+        self.bt_value_spin.setValue(10)
+        bt_value_layout.addWidget(self.bt_value_spin)
+        bt_value_layout.addStretch()
+
+        # 二叉树操作按钮
+        bt_button_layout = QHBoxLayout()
+        self.bt_insert_level_btn = QPushButton("层次插入")
+        self.bt_clear_btn = QPushButton("清空二叉树")
+
+        bt_button_layout.addWidget(self.bt_insert_level_btn)
+        bt_button_layout.addWidget(self.bt_clear_btn)
+
+        # 批量插入
+        bt_batch_layout = QHBoxLayout()
+        self.bt_batch_input = QLineEdit()
+        self.bt_batch_input.setPlaceholderText("输入多个值，用逗号分隔，如: 1,2,3,4,5")
+        self.bt_batch_insert_btn = QPushButton("批量插入")
+
+        bt_batch_layout.addWidget(self.bt_batch_input)
+        bt_batch_layout.addWidget(self.bt_batch_insert_btn)
+
+        binary_tree_layout.addLayout(bt_value_layout)
+        binary_tree_layout.addLayout(bt_button_layout)
+        binary_tree_layout.addLayout(bt_batch_layout)
+        self.binary_tree_group.setLayout(binary_tree_layout)
+        self.binary_tree_group.setVisible(False)
 
         # 指令输入
         cmd_group = QGroupBox("指令输入")
         cmd_layout = QVBoxLayout()
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("输入指令，如: insert 10 at beginning 或 push 5 或 enqueue 8")
+        self.cmd_input.setPlaceholderText("输入指令，如: insert 10 at beginning 或 push 5 或 enqueue 8 或 bt_insert 5")
         self.execute_cmd_btn = QPushButton("执行指令")
         cmd_layout.addWidget(self.cmd_input)
         cmd_layout.addWidget(self.execute_cmd_btn)
@@ -134,6 +170,7 @@ class ControlsPanel(QWidget):
         layout.addWidget(self.ll_group)
         layout.addWidget(self.stack_group)
         layout.addWidget(self.queue_group)
+        layout.addWidget(self.binary_tree_group)
         layout.addWidget(cmd_group)
         layout.addStretch()
 
@@ -147,6 +184,7 @@ class ControlsPanel(QWidget):
         self.ll_group.setVisible(ds_name == "链表")
         self.stack_group.setVisible(ds_name == "栈")
         self.queue_group.setVisible(ds_name == "队列")
+        self.binary_tree_group.setVisible(ds_name == "二叉树")
 
 
     def connect_ll_signals(self, insert_begin, insert_end, insert_pos, delete_pos, clear):
@@ -168,6 +206,28 @@ class ControlsPanel(QWidget):
         self.enqueue_btn.clicked.connect(enqueue)
         self.dequeue_btn.clicked.connect(dequeue)
         self.clear_queue_btn.clicked.connect(clear)
+
+    def connect_binary_tree_signals(self, insert_level, clear, batch_insert):
+        """连接二叉树操作的信号"""
+        self.bt_insert_level_btn.clicked.connect(insert_level)
+        self.bt_clear_btn.clicked.connect(clear)
+        self.bt_batch_insert_btn.clicked.connect(batch_insert)
+
+    def get_binary_tree_batch_values(self):
+        """获取批量插入的值"""
+        text = self.bt_batch_input.text().strip()
+        if not text:
+            return []
+
+        try:
+            values = [int(x.strip()) for x in text.split(',')]
+            return values
+        except ValueError:
+            return []
+
+    def clear_binary_tree_batch_input(self):
+        """清空批量输入框"""
+        self.bt_batch_input.clear()
 
     def get_value(self):
         """获取输入的值"""

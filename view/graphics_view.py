@@ -271,3 +271,110 @@ class GraphicsView(QGraphicsView):
         text.setDefaultTextColor(Qt.blue)
         text.setFont(QFont("Arial", 10))
         text.setPos(x, y - 25)
+
+    def draw_binary_tree(self, tree):
+        """绘制二叉树"""
+        self.clear_scene()
+
+        tree_structure = tree.get_tree_structure()
+        if tree_structure is None:
+            empty_label = self.scene.addText("二叉树为空")
+            empty_label.setDefaultTextColor(Qt.red)
+            empty_label.setFont(QFont("Arial", 14, QFont.Bold))
+            empty_label.setPos(350, 200)
+            return
+
+        # 计算树的高度和节点位置
+        height = self._calculate_tree_height(tree_structure)
+        positions = {}
+        self._calculate_node_positions(tree_structure, 400, 50, 300, height, positions)
+
+        # 绘制连线
+        self._draw_tree_connections(tree_structure, positions)
+
+        # 绘制节点
+        self._draw_tree_nodes(tree_structure, positions)
+
+    def _calculate_tree_height(self, node):
+        """计算树的高度"""
+        if node is None:
+            return 0
+        left_height = self._calculate_tree_height(node['left'])
+        right_height = self._calculate_tree_height(node['right'])
+        return max(left_height, right_height) + 1
+
+    def _calculate_node_positions(self, node, x, y, horizontal_spacing, level, positions):
+        """计算每个节点的位置"""
+        if node is None:
+            return
+
+        positions[node['data']] = (x, y)
+
+        # 计算子节点的垂直间距
+        vertical_spacing = 80
+
+        if node['left'] is not None:
+            left_x = x - horizontal_spacing / (2 ** (level - 1))
+            left_y = y + vertical_spacing
+            self._calculate_node_positions(node['left'], left_x, left_y, horizontal_spacing, level - 1, positions)
+
+        if node['right'] is not None:
+            right_x = x + horizontal_spacing / (2 ** (level - 1))
+            right_y = y + vertical_spacing
+            self._calculate_node_positions(node['right'], right_x, right_y, horizontal_spacing, level - 1, positions)
+
+    def _draw_tree_connections(self, node, positions):
+        """绘制树的连线"""
+        if node is None:
+            return
+
+        current_pos = positions.get(node['data'])
+
+        if current_pos and node['left'] is not None:
+            left_pos = positions.get(node['left']['data'])
+            if left_pos:
+                line = self.scene.addLine(current_pos[0], current_pos[1], left_pos[0], left_pos[1])
+                line.setPen(QPen(Qt.black, 2))
+
+        if current_pos and node['right'] is not None:
+            right_pos = positions.get(node['right']['data'])
+            if right_pos:
+                line = self.scene.addLine(current_pos[0], current_pos[1], right_pos[0], right_pos[1])
+                line.setPen(QPen(Qt.black, 2))
+
+        # 递归绘制子节点的连线
+        if node['left'] is not None:
+            self._draw_tree_connections(node['left'], positions)
+
+        if node['right'] is not None:
+            self._draw_tree_connections(node['right'], positions)
+
+    def _draw_tree_nodes(self, node, positions):
+        """绘制树的节点"""
+        if node is None:
+            return
+
+        pos = positions.get(node['data'])
+        if pos:
+            x, y = pos
+            node_width = 40
+            node_height = 40
+
+            # 绘制节点圆形
+            ellipse = self.scene.addEllipse(x - node_width / 2, y - node_height / 2, node_width, node_height)
+            ellipse.setBrush(QBrush(QColor(255, 182, 193)))  # 浅粉色
+            ellipse.setPen(QPen(Qt.black, 2))
+
+            # 绘制节点数据
+            text = self.scene.addText(str(node['data']))
+            text.setDefaultTextColor(Qt.black)
+            text.setFont(QFont("Arial", 10, QFont.Bold))
+            text_rect = text.boundingRect()
+            text.setPos(x - text_rect.width() / 2, y - text_rect.height() / 2)
+
+        # 递归绘制子节点
+        if node['left'] is not None:
+            self._draw_tree_nodes(node['left'], positions)
+
+        if node['right'] is not None:
+            self._draw_tree_nodes(node['right'], positions)
