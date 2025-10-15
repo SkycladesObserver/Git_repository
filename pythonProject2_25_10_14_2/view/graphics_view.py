@@ -1,6 +1,7 @@
+
 from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, pyqtProperty, QPointF
-from PyQt5.QtGui import QPen, QBrush, QColor, QFont, QPainter
+from PyQt5.QtGui import QPen, QBrush, QColor, QFont, QPainter, QPolygonF
 from PyQt5.QtCore import QRectF
 
 
@@ -129,3 +130,68 @@ class GraphicsView(QGraphicsView):
         text_item.setDefaultTextColor(Qt.blue)
         text_item.setFont(QFont("Arial", 14))
         text_item.setPos(50, 50)
+
+    def draw_stack(self, stack):
+        """绘制栈"""
+        self.clear_scene()
+
+        # 栈的绘制参数
+        start_x = 400
+        start_y = 100
+        element_width = 80
+        element_height = 40
+        spacing = 5
+
+        # 绘制栈框架
+        frame_height = stack.capacity * (element_height + spacing)
+        frame = self.scene.addRect(start_x - 10, start_y - 10,
+                                   element_width + 20, frame_height + 20)
+        frame.setPen(QPen(Qt.black, 2))
+
+        # 绘制栈元素（从底部到顶部）
+        for i in range(stack.capacity):
+            x = start_x
+            y = start_y + (stack.capacity - 1 - i) * (element_height + spacing)
+
+            # 绘制栈元素背景
+            rect = self.scene.addRect(x, y, element_width, element_height)
+
+            if i <= stack.top:
+                # 有数据的元素
+                rect.setBrush(QBrush(QColor(144, 238, 144)))  # 浅绿色
+                rect.setPen(QPen(Qt.black, 2))
+
+                # 绘制数据
+                text = self.scene.addText(str(stack.data[i]))
+                text.setDefaultTextColor(Qt.black)
+                text.setFont(QFont("Arial", 12, QFont.Bold))
+                text_rect = text.boundingRect()
+                text.setPos(x + element_width / 2 - text_rect.width() / 2,
+                            y + element_height / 2 - text_rect.height() / 2)
+            else:
+                # 空元素
+                rect.setBrush(QBrush(QColor(240, 240, 240)))  # 浅灰色
+                rect.setPen(QPen(Qt.gray, 1))
+
+        # 绘制栈顶指针
+        if stack.top >= 0:
+            pointer_y = start_y + (stack.capacity - 1 - stack.top) * (element_height + spacing)
+            self._draw_stack_pointer(start_x + element_width + 20, pointer_y + element_height / 2)
+
+        # 添加标签
+        top_label = self.scene.addText("栈顶")
+        top_label.setPos(start_x + element_width + 50, start_y - 30)
+        top_label.setDefaultTextColor(Qt.blue)
+
+    def _draw_stack_pointer(self, x, y):
+        """绘制栈顶指针"""
+        # 绘制指针线
+        line = self.scene.addLine(x, y, x + 40, y)
+        line.setPen(QPen(Qt.red, 3))
+
+        # 绘制箭头
+        arrow = self.scene.addPolygon(
+            QPolygonF([QPointF(x + 40, y),
+                       QPointF(x + 30, y - 5),
+                       QPointF(x + 30, y + 5)]))
+        arrow.setBrush(QBrush(Qt.red))

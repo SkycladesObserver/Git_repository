@@ -64,11 +64,39 @@ class ControlsPanel(QWidget):
         ll_layout.addLayout(button_layout)
         self.ll_group.setLayout(ll_layout)
 
+        # 栈操作组
+        self.stack_group = QGroupBox("栈操作")
+        stack_layout = QVBoxLayout()
+
+        # 栈值输入
+        stack_value_layout = QHBoxLayout()
+        stack_value_layout.addWidget(QLabel("值:"))
+        self.stack_value_spin = QSpinBox()
+        self.stack_value_spin.setRange(-999, 999)
+        self.stack_value_spin.setValue(10)
+        stack_value_layout.addWidget(self.stack_value_spin)
+        stack_value_layout.addStretch()
+
+        # 栈操作按钮
+        stack_button_layout = QHBoxLayout()
+        self.push_btn = QPushButton("入栈")
+        self.pop_btn = QPushButton("出栈")
+        self.clear_stack_btn = QPushButton("清空栈")
+
+        stack_button_layout.addWidget(self.push_btn)
+        stack_button_layout.addWidget(self.pop_btn)
+        stack_button_layout.addWidget(self.clear_stack_btn)
+
+        stack_layout.addLayout(stack_value_layout)
+        stack_layout.addLayout(stack_button_layout)
+        self.stack_group.setLayout(stack_layout)
+        self.stack_group.setVisible(False)  # 默认隐藏
+
         # 指令输入
         cmd_group = QGroupBox("指令输入")
         cmd_layout = QVBoxLayout()
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("输入指令，如: insert 10 at beginning")
+        self.cmd_input.setPlaceholderText("输入指令，如: insert 10 at beginning 或 push 5")
         self.execute_cmd_btn = QPushButton("执行指令")
         cmd_layout.addWidget(self.cmd_input)
         cmd_layout.addWidget(self.execute_cmd_btn)
@@ -76,10 +104,24 @@ class ControlsPanel(QWidget):
 
         layout.addWidget(ds_group)
         layout.addWidget(self.ll_group)
+        layout.addWidget(self.stack_group)
         layout.addWidget(cmd_group)
         layout.addStretch()
 
         self.setLayout(layout)
+
+        # 连接数据结构选择信号
+        self.ds_combo.currentTextChanged.connect(self.on_ds_changed)
+
+    def on_ds_changed(self, ds_name):
+        """当数据结构改变时显示对应的操作组"""
+        if ds_name == "链表":
+            self.ll_group.setVisible(True)
+            self.stack_group.setVisible(False)
+        elif ds_name == "栈":
+            self.ll_group.setVisible(False)
+            self.stack_group.setVisible(True)
+
 
     def connect_ll_signals(self, insert_begin, insert_end, insert_pos, delete_pos, clear):
         """连接链表操作的信号"""
@@ -88,6 +130,12 @@ class ControlsPanel(QWidget):
         self.insert_pos_btn.clicked.connect(insert_pos)
         self.delete_pos_btn.clicked.connect(delete_pos)
         self.clear_btn.clicked.connect(clear)
+
+    def connect_stack_signals(self, push, pop, clear):
+        """连接栈操作的信号"""
+        self.push_btn.clicked.connect(push)
+        self.pop_btn.clicked.connect(pop)
+        self.clear_stack_btn.clicked.connect(clear)
 
     def get_value(self):
         """获取输入的值"""
@@ -104,3 +152,4 @@ class ControlsPanel(QWidget):
     def clear_command(self):
         """清空指令输入"""
         self.cmd_input.clear()
+

@@ -3,6 +3,7 @@ from PyQt5.QtCore import Qt
 from .graphics_view import GraphicsView
 from .controls import ControlsPanel
 from model.linked_list import LinkedList
+from model.stack import Stack
 
 
 class MainWindow(QMainWindow):
@@ -11,6 +12,8 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.linked_list = LinkedList()
+        self.stack = Stack()  # 创建栈实例
+        self.current_ds = "链表"  # 当前选择的数据结构
         self.init_ui()
         self.connect_signals()
 
@@ -52,8 +55,23 @@ class MainWindow(QMainWindow):
             self.clear_list
         )
 
+        # 连接栈操作
+        self.controls_panel.connect_stack_signals(
+            self.push,
+            self.pop,
+            self.clear_stack
+        )
+
+        # 连接数据结构选择
+        self.controls_panel.ds_combo.currentTextChanged.connect(self.on_ds_selected)
+
         # 连接指令执行
         self.controls_panel.execute_cmd_btn.clicked.connect(self.execute_command)
+
+    def on_ds_selected(self, ds_name):
+        """当选择不同的数据结构时"""
+        self.current_ds = ds_name
+        self.update_display(f"切换到: {ds_name}")
 
     def insert_beginning(self):
         """在链表开头插入节点"""
@@ -93,6 +111,44 @@ class MainWindow(QMainWindow):
         self.linked_list.clear()
         self.update_display("链表已清空")
 
+    # 栈操作方法
+    def push(self):
+        """入栈操作"""
+        value = self.controls_panel.stack_value_spin.value()
+        try:
+            self.stack.push(value)
+            self.update_display(f"入栈: {value}")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def pop(self):
+        """出栈操作"""
+        try:
+            value = self.stack.pop()
+            self.update_display(f"出栈: {value}")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def clear_stack(self):
+        """清空栈"""
+        self.stack = Stack()
+        self.update_display("栈已清空")
+
+    def update_display(self, message=None):
+        """更新显示"""
+        if message:
+            self.status_bar.showMessage(message)
+            self.graphics_view.add_operation_text(message)
+
+        # 根据当前选择的数据结构调用对应的绘制方法
+        if self.current_ds == "链表":
+            if self.linked_list.head is not None:
+                self.graphics_view.draw_linked_list(self.linked_list)
+            else:
+                self.graphics_view.clear_scene()
+        elif self.current_ds == "栈":
+            self.graphics_view.draw_stack(self.stack)
+
     def execute_command(self):
         """执行指令"""
         command = self.controls_panel.get_command()
@@ -101,8 +157,10 @@ class MainWindow(QMainWindow):
 
         # 简化版指令解析
         parts = command.lower().split()
-        if len(parts) >= 2 and parts[0] == "insert":
-            try:
+
+        try:
+            # 链表指令
+            if len(parts) >= 2 and parts[0] == "insert":
                 value = int(parts[1])
                 if "beginning" in command:
                     self.linked_list.insert_at_beginning(value)
@@ -114,38 +172,36 @@ class MainWindow(QMainWindow):
                     position = int(parts[3])
                     self.linked_list.insert_at_position(position, value)
                     self.update_display(f"指令执行: {command}")
-            except (ValueError, IndexError) as e:
-                self.status_bar.showMessage(f"指令错误: {str(e)}")
 
-        elif len(parts) >= 2 and parts[0] == "delete":
-            if "position" in command and len(parts) > 2:
-                try:
+            # 栈指令
+            elif parts[0] == "push" and len(parts) > 1:
+                value = int(parts[1])
+                self.stack.push(value)
+                self.update_display(f"指令执行: {command}")
+
+            elif parts[0] == "pop":
+                value = self.stack.pop()
+                self.update_display(f"指令执行: {command}, 出栈: {value}")
+
+            elif len(parts) >= 2 and parts[0] == "delete":
+                if "position" in command and len(parts) > 2:
                     position = int(parts[2])
                     deleted_node = self.linked_list.delete_at_position(position)
                     self.update_display(f"指令执行: {command}")
-                except (ValueError, IndexError) as e:
-                    self.status_bar.showMessage(f"指令错误: {str(e)}")
 
-        elif command == "clear":
-            self.linked_list.clear()
-            self.update_display("指令执行: 清空链表")
+            elif command == "clear":
+                if self.current_ds == "链表":
+                    self.linked_list.clear()
+                    self.update_display("指令执行: 清空链表")
+                elif self.current_ds == "栈":
+                    self.stack = Stack()
+                    self.update_display("指令执行: 清空栈")
 
-        else:
-            self.status_bar.showMessage(f"未知指令: {command}")
+            else:
+                self.status_bar.showMessage(f"未知指令: {command}")
+
+        except (ValueError, IndexError, Exception) as e:
+            self.status_bar.showMessage(f"指令错误: {str(e)}")
 
         self.controls_panel.clear_command()
 
-    def update_display(self, message=None):
-        """更新显示"""
-        if message:
-            self.status_bar.showMessage(message)
-            self.graphics_view.add_operation_text(message)
-
-        # 确保链表不为空时才绘制
-        if hasattr(self, 'linked_list') and self.linked_list.head is not None:
-            self.graphics_view.draw_linked_list(self.linked_list)
-        else:
-            # 如果链表为空，清空显示
-            self.graphics_view.clear_scene()
-            if message:
-                self.graphics_view.add_operation_text(message)
