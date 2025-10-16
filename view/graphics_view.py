@@ -378,3 +378,56 @@ class GraphicsView(QGraphicsView):
 
         if node['right'] is not None:
             self._draw_tree_nodes(node['right'], positions)
+
+    def draw_binary_search_tree(self, bst):
+        """绘制二叉搜索树"""
+        self.clear_scene()
+
+        tree_structure = bst.get_tree_structure()
+        if tree_structure is None:
+            empty_label = self.scene.addText("二叉搜索树为空")
+            empty_label.setDefaultTextColor(Qt.red)
+            empty_label.setFont(QFont("Arial", 14, QFont.Bold))
+            empty_label.setPos(350, 200)
+            return
+
+        # 计算树的高度和节点位置
+        height = self._calculate_tree_height(tree_structure)
+        positions = {}
+        self._calculate_node_positions(tree_structure, 400, 50, 300, height, positions)
+
+        # 绘制连线
+        self._draw_tree_connections(tree_structure, positions)
+
+        # 绘制节点
+        self._draw_bst_nodes(tree_structure, positions)
+
+    def _draw_bst_nodes(self, node, positions):
+        """绘制BST的节点（使用不同颜色）"""
+        if node is None:
+            return
+
+        pos = positions.get(node['data'])
+        if pos:
+            x, y = pos
+            node_width = 40
+            node_height = 40
+
+            # 绘制节点圆形 - 使用不同颜色区分BST
+            ellipse = self.scene.addEllipse(x - node_width / 2, y - node_height / 2, node_width, node_height)
+            ellipse.setBrush(QBrush(QColor(152, 251, 152)))  # 浅绿色
+            ellipse.setPen(QPen(Qt.black, 2))
+
+            # 绘制节点数据
+            text = self.scene.addText(str(node['data']))
+            text.setDefaultTextColor(Qt.black)
+            text.setFont(QFont("Arial", 10, QFont.Bold))
+            text_rect = text.boundingRect()
+            text.setPos(x - text_rect.width() / 2, y - text_rect.height() / 2)
+
+        # 递归绘制子节点
+        if node['left'] is not None:
+            self._draw_bst_nodes(node['left'], positions)
+
+        if node['right'] is not None:
+            self._draw_bst_nodes(node['right'], positions)

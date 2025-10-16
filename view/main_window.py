@@ -6,6 +6,7 @@ from model.linked_list import LinkedList
 from model.stack import Stack
 from model.queue import Queue
 from model.binary_tree import BinaryTree
+from model.binary_search_tree import BinarySearchTree
 
 
 class MainWindow(QMainWindow):
@@ -16,7 +17,8 @@ class MainWindow(QMainWindow):
         self.linked_list = LinkedList()
         self.stack = Stack()
         self.queue = Queue()
-        self.binary_tree = BinaryTree()  # 创建二叉树实例
+        self.binary_tree = BinaryTree()
+        self.bst = BinarySearchTree()  # 创建二叉搜索树实例
         self.current_ds = "链表"
         self.init_ui()
         self.connect_signals()
@@ -36,7 +38,7 @@ class MainWindow(QMainWindow):
         self.controls_panel = ControlsPanel()
         main_layout.addWidget(self.controls_panel, 1)  # 1份宽度
 
-        # 右侧图形视图 - 确保这个属性被正确创建
+        # 右侧图形视图
         self.graphics_view = GraphicsView()
         main_layout.addWidget(self.graphics_view, 3)  # 3份宽度
 
@@ -78,6 +80,15 @@ class MainWindow(QMainWindow):
             self.binary_tree_insert_level,
             self.clear_binary_tree,
             self.binary_tree_batch_insert
+        )
+
+        # 连接二叉搜索树操作
+        self.controls_panel.connect_bst_signals(
+            self.bst_insert,
+            self.bst_search,
+            self.bst_delete,
+            self.clear_bst,
+            self.bst_batch_insert
         )
 
         # 连接数据结构选择
@@ -212,15 +223,59 @@ class MainWindow(QMainWindow):
         self.binary_tree = BinaryTree()
         self.update_display("二叉树已清空")
 
+    # 二叉搜索树操作方法
+    def bst_insert(self):
+        """BST插入"""
+        value = self.controls_panel.bst_value_spin.value()
+        try:
+            self.bst.insert(value)
+            self.update_display(f"BST插入: {value}")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def bst_search(self):
+        """BST查找"""
+        value = self.controls_panel.bst_value_spin.value()
+        node = self.bst.search(value)
+        if node:
+            self.update_display(f"BST查找: 找到 {value}")
+        else:
+            self.update_display(f"BST查找: 未找到 {value}")
+
+    def bst_delete(self):
+        """BST删除"""
+        value = self.controls_panel.bst_value_spin.value()
+        try:
+            self.bst.delete(value)
+            self.update_display(f"BST删除: {value}")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def bst_batch_insert(self):
+        """BST批量插入"""
+        values = self.controls_panel.get_bst_batch_values()
+        if not values:
+            self.status_bar.showMessage("错误: 请输入有效的数值")
+            return
+
+        for value in values:
+            self.bst.insert(value)
+
+        self.update_display(f"BST批量插入: {', '.join(map(str, values))}")
+        self.controls_panel.clear_bst_batch_input()
+
+    def clear_bst(self):
+        """清空BST"""
+        self.bst = BinarySearchTree()
+        self.update_display("二叉搜索树已清空")
+
     def update_display(self, message=None):
         """更新显示"""
         if message:
             self.status_bar.showMessage(message)
-            # 确保 graphics_view 存在后再调用其方法
             if hasattr(self, 'graphics_view'):
                 self.graphics_view.add_operation_text(message)
 
-        # 确保 graphics_view 存在后再调用其方法
         if not hasattr(self, 'graphics_view'):
             return
 
@@ -236,6 +291,8 @@ class MainWindow(QMainWindow):
             self.graphics_view.draw_queue(self.queue)
         elif self.current_ds == "二叉树":
             self.graphics_view.draw_binary_tree(self.binary_tree)
+        elif self.current_ds == "二叉搜索树":
+            self.graphics_view.draw_binary_search_tree(self.bst)
 
     def execute_command(self):
         """执行指令"""
@@ -290,6 +347,25 @@ class MainWindow(QMainWindow):
                 self.binary_tree.insert_level_order(current_level_order)
                 self.update_display(f"指令执行: {command}")
 
+            # 二叉搜索树指令
+            elif parts[0] == "bst_insert" and len(parts) > 1:
+                value = int(parts[1])
+                self.bst.insert(value)
+                self.update_display(f"指令执行: {command}")
+
+            elif parts[0] == "bst_search" and len(parts) > 1:
+                value = int(parts[1])
+                node = self.bst.search(value)
+                if node:
+                    self.update_display(f"指令执行: {command}, 找到 {value}")
+                else:
+                    self.update_display(f"指令执行: {command}, 未找到 {value}")
+
+            elif parts[0] == "bst_delete" and len(parts) > 1:
+                value = int(parts[1])
+                self.bst.delete(value)
+                self.update_display(f"指令执行: {command}")
+
             elif len(parts) >= 2 and parts[0] == "delete":
                 if "position" in command and len(parts) > 2:
                     position = int(parts[2])
@@ -309,6 +385,9 @@ class MainWindow(QMainWindow):
                 elif self.current_ds == "二叉树":
                     self.binary_tree = BinaryTree()
                     self.update_display("指令执行: 清空二叉树")
+                elif self.current_ds == "二叉搜索树":
+                    self.bst = BinarySearchTree()
+                    self.update_display("指令执行: 清空二叉搜索树")
 
             else:
                 self.status_bar.showMessage(f"未知指令: {command}")

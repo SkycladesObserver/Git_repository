@@ -156,11 +156,52 @@ class ControlsPanel(QWidget):
         self.binary_tree_group.setLayout(binary_tree_layout)
         self.binary_tree_group.setVisible(False)
 
+        # 二叉搜索树操作组
+        self.bst_group = QGroupBox("二叉搜索树操作")
+        bst_layout = QVBoxLayout()
+
+        # BST值输入
+        bst_value_layout = QHBoxLayout()
+        bst_value_layout.addWidget(QLabel("值:"))
+        self.bst_value_spin = QSpinBox()
+        self.bst_value_spin.setRange(-999, 999)
+        self.bst_value_spin.setValue(10)
+        bst_value_layout.addWidget(self.bst_value_spin)
+        bst_value_layout.addStretch()
+
+        # BST操作按钮
+        bst_button_layout = QHBoxLayout()
+        self.bst_insert_btn = QPushButton("插入")
+        self.bst_search_btn = QPushButton("查找")
+        self.bst_delete_btn = QPushButton("删除")
+        self.bst_clear_btn = QPushButton("清空BST")
+
+        bst_button_layout.addWidget(self.bst_insert_btn)
+        bst_button_layout.addWidget(self.bst_search_btn)
+        bst_button_layout.addWidget(self.bst_delete_btn)
+        bst_button_layout.addWidget(self.bst_clear_btn)
+
+        # BST批量插入
+        bst_batch_layout = QHBoxLayout()
+        self.bst_batch_input = QLineEdit()
+        self.bst_batch_input.setPlaceholderText("输入多个值，用逗号分隔，如: 5,3,7,2,4,6,8")
+        self.bst_batch_insert_btn = QPushButton("批量插入")
+
+        bst_batch_layout.addWidget(self.bst_batch_input)
+        bst_batch_layout.addWidget(self.bst_batch_insert_btn)
+
+        bst_layout.addLayout(bst_value_layout)
+        bst_layout.addLayout(bst_button_layout)
+        bst_layout.addLayout(bst_batch_layout)
+        self.bst_group.setLayout(bst_layout)
+        self.bst_group.setVisible(False)
+
         # 指令输入
         cmd_group = QGroupBox("指令输入")
         cmd_layout = QVBoxLayout()
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("输入指令，如: insert 10 at beginning 或 push 5 或 enqueue 8 或 bt_insert 5")
+        self.cmd_input.setPlaceholderText(
+            "输入指令，如: insert 10 at beginning 或 push 5 或 enqueue 8 或 bt_insert 5 或 bst_insert 5")
         self.execute_cmd_btn = QPushButton("执行指令")
         cmd_layout.addWidget(self.cmd_input)
         cmd_layout.addWidget(self.execute_cmd_btn)
@@ -171,6 +212,7 @@ class ControlsPanel(QWidget):
         layout.addWidget(self.stack_group)
         layout.addWidget(self.queue_group)
         layout.addWidget(self.binary_tree_group)
+        layout.addWidget(self.bst_group)
         layout.addWidget(cmd_group)
         layout.addStretch()
 
@@ -185,7 +227,7 @@ class ControlsPanel(QWidget):
         self.stack_group.setVisible(ds_name == "栈")
         self.queue_group.setVisible(ds_name == "队列")
         self.binary_tree_group.setVisible(ds_name == "二叉树")
-
+        self.bst_group.setVisible(ds_name == "二叉搜索树")
 
     def connect_ll_signals(self, insert_begin, insert_end, insert_pos, delete_pos, clear):
         """连接链表操作的信号"""
@@ -228,6 +270,30 @@ class ControlsPanel(QWidget):
     def clear_binary_tree_batch_input(self):
         """清空批量输入框"""
         self.bt_batch_input.clear()
+
+    def connect_bst_signals(self, insert, search, delete, clear, batch_insert):
+        """连接二叉搜索树操作的信号"""
+        self.bst_insert_btn.clicked.connect(insert)
+        self.bst_search_btn.clicked.connect(search)
+        self.bst_delete_btn.clicked.connect(delete)
+        self.bst_clear_btn.clicked.connect(clear)
+        self.bst_batch_insert_btn.clicked.connect(batch_insert)
+
+    def get_bst_batch_values(self):
+        """获取BST批量插入的值"""
+        text = self.bst_batch_input.text().strip()
+        if not text:
+            return []
+
+        try:
+            values = [int(x.strip()) for x in text.split(',')]
+            return values
+        except ValueError:
+            return []
+
+    def clear_bst_batch_input(self):
+        """清空BST批量输入框"""
+        self.bst_batch_input.clear()
 
     def get_value(self):
         """获取输入的值"""
