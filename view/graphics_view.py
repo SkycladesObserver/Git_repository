@@ -273,7 +273,7 @@ class GraphicsView(QGraphicsView):
         text.setPos(x, y - 25)
 
     def draw_binary_tree(self, tree):
-        """绘制二叉树"""
+        """绘制二叉树 - 使用改进的布局算法"""
         self.clear_scene()
 
         tree_structure = tree.get_tree_structure()
@@ -284,24 +284,14 @@ class GraphicsView(QGraphicsView):
             empty_label.setPos(350, 200)
             return
 
-        # 计算树的高度和节点位置
-        height = self._calculate_tree_height(tree_structure)
-        positions = {}
-        self._calculate_node_positions(tree_structure, 400, 50, 300, height, positions)
+        # 使用改进的布局算法计算节点位置
+        positions = self.calculate_tree_layout(tree_structure)
 
         # 绘制连线
         self._draw_tree_connections(tree_structure, positions)
 
         # 绘制节点
         self._draw_tree_nodes(tree_structure, positions)
-
-    def _calculate_tree_height(self, node):
-        """计算树的高度"""
-        if node is None:
-            return 0
-        left_height = self._calculate_tree_height(node['left'])
-        right_height = self._calculate_tree_height(node['right'])
-        return max(left_height, right_height) + 1
 
     def _calculate_node_positions(self, node, x, y, horizontal_spacing, level, positions):
         """计算每个节点的位置"""
@@ -323,30 +313,156 @@ class GraphicsView(QGraphicsView):
             right_y = y + vertical_spacing
             self._calculate_node_positions(node['right'], right_x, right_y, horizontal_spacing, level - 1, positions)
 
+    def draw_binary_search_tree(self, bst):
+        """绘制二叉搜索树 - 使用改进的布局算法"""
+        self.clear_scene()
+
+        tree_structure = bst.get_tree_structure()
+        if tree_structure is None:
+            empty_label = self.scene.addText("二叉搜索树为空")
+            empty_label.setDefaultTextColor(Qt.red)
+            empty_label.setFont(QFont("Arial", 14, QFont.Bold))
+            empty_label.setPos(350, 200)
+            return
+
+        # 使用改进的布局算法计算节点位置
+        positions = self.calculate_tree_layout(tree_structure)
+
+        # 绘制连线
+        self._draw_tree_connections(tree_structure, positions)
+
+        # 绘制节点
+        self._draw_bst_nodes(tree_structure, positions)
+
+    def _calculate_tree_layout(self, node, x, y, base_spacing, total_height, positions):
+        """改进的树形布局算法 - 使用唯一标识符"""
+        if node is None:
+            return
+
+        # 使用节点的唯一标识符作为键
+        positions[node['id']] = (x, y)
+
+        # 计算当前节点的深度
+        current_depth = self._calculate_node_depth(node, total_height)
+
+        # 动态调整水平间距：上层节点间距大，下层节点间距小
+        horizontal_spacing = base_spacing * (0.7 ** current_depth)
+        vertical_spacing = 80
+
+        if node['left'] is not None:
+            left_x = x - horizontal_spacing
+            left_y = y + vertical_spacing
+            self._calculate_tree_layout(node['left'], left_x, left_y, base_spacing, total_height, positions)
+
+        if node['right'] is not None:
+            right_x = x + horizontal_spacing
+            right_y = y + vertical_spacing
+            self._calculate_tree_layout(node['right'], right_x, right_y, base_spacing, total_height, positions)
+
+    def calculate_tree_layout(self, tree_structure):
+        """使用改进的树布局算法计算节点位置"""
+        if tree_structure is None:
+            return {}
+
+        # 第一步：计算每个节点的尺寸和位置
+        positions = {}
+        self._layout_tree(tree_structure, positions)
+
+        # 第二步：居中整个树
+        self._center_tree(positions)
+
+        return positions
+
+    def _layout_tree(self, node, positions, x=0, y=0, depth=0):
+        """递归计算树布局"""
+        if node is None:
+            return 0
+
+        # 计算左子树和右子树的宽度
+        left_width = self._layout_tree(node.get('left'), positions, x, y + 1, depth + 1)
+        right_width = self._layout_tree(node.get('right'), positions, x + left_width + 1, y + 1, depth + 1)
+
+        # 当前节点的x位置是左子树宽度 + 0.5（居中）
+        node_x = x + left_width
+
+        # 存储节点位置
+        positions[node['id']] = (node_x * 80 + 100, y * 100 + 100)  # 调整间距
+
+        # 返回当前子树的宽度
+        return left_width + right_width + 1
+
+    def _center_tree(self, positions):
+        """将树居中显示"""
+        if not positions:
+            return
+
+        # 找到x坐标的最小值和最大值
+        x_values = [pos[0] for pos in positions.values()]
+        min_x, max_x = min(x_values), max(x_values)
+
+        # 计算居中偏移量
+        center_x = 400  # 画布中心
+        tree_center = (min_x + max_x) / 2
+        offset_x = center_x - tree_center
+
+        # 应用偏移量
+        for node_id in positions:
+            x, y = positions[node_id]
+            positions[node_id] = (x + offset_x, y)
+
+    def _calculate_node_depth(self, node, total_height):
+        """计算节点在树中的深度"""
+        if node is None:
+            return 0
+
+        # 通过递归计算节点到根节点的距离
+        def get_depth(current_node, current_depth):
+            if current_node is None:
+                return current_depth
+
+            left_depth = get_depth(current_node.get('left'), current_depth + 1)
+            right_depth = get_depth(current_node.get('right'), current_depth + 1)
+
+            return max(left_depth, right_depth)
+
+        return get_depth(node, 0)
+
+    def _calculate_tree_height(self, node):
+        """计算树的高度"""
+        if node is None:
+            return 0
+
+        left_height = self._calculate_tree_height(node['left'])
+        right_height = self._calculate_tree_height(node['right'])
+
+        return max(left_height, right_height) + 1
+
     def _draw_tree_connections(self, node, positions):
         """绘制树的连线"""
         if node is None:
             return
 
-        current_pos = positions.get(node['data'])
+        current_pos = positions.get(node['id'])
 
-        if current_pos and node['left'] is not None:
-            left_pos = positions.get(node['left']['data'])
+        if current_pos and node.get('left') is not None:
+            left_pos = positions.get(node['left']['id'])
             if left_pos:
+                # 绘制从父节点到左子节点的连线
                 line = self.scene.addLine(current_pos[0], current_pos[1], left_pos[0], left_pos[1])
                 line.setPen(QPen(Qt.black, 2))
 
-        if current_pos and node['right'] is not None:
-            right_pos = positions.get(node['right']['data'])
+        if current_pos and node.get('right') is not None:
+            right_pos = positions.get(node['right']['id'])
             if right_pos:
+                # 绘制从父节点到右子节点的连线
                 line = self.scene.addLine(current_pos[0], current_pos[1], right_pos[0], right_pos[1])
                 line.setPen(QPen(Qt.black, 2))
 
         # 递归绘制子节点的连线
-        if node['left'] is not None:
+        if node.get('left') is not None:
             self._draw_tree_connections(node['left'], positions)
 
-        if node['right'] is not None:
+        if node.get('right') is not None:
             self._draw_tree_connections(node['right'], positions)
 
     def _draw_tree_nodes(self, node, positions):
@@ -354,7 +470,7 @@ class GraphicsView(QGraphicsView):
         if node is None:
             return
 
-        pos = positions.get(node['data'])
+        pos = positions.get(node['id'])
         if pos:
             x, y = pos
             node_width = 40
@@ -373,41 +489,18 @@ class GraphicsView(QGraphicsView):
             text.setPos(x - text_rect.width() / 2, y - text_rect.height() / 2)
 
         # 递归绘制子节点
-        if node['left'] is not None:
+        if node.get('left') is not None:
             self._draw_tree_nodes(node['left'], positions)
 
-        if node['right'] is not None:
+        if node.get('right') is not None:
             self._draw_tree_nodes(node['right'], positions)
-
-    def draw_binary_search_tree(self, bst):
-        """绘制二叉搜索树"""
-        self.clear_scene()
-
-        tree_structure = bst.get_tree_structure()
-        if tree_structure is None:
-            empty_label = self.scene.addText("二叉搜索树为空")
-            empty_label.setDefaultTextColor(Qt.red)
-            empty_label.setFont(QFont("Arial", 14, QFont.Bold))
-            empty_label.setPos(350, 200)
-            return
-
-        # 计算树的高度和节点位置
-        height = self._calculate_tree_height(tree_structure)
-        positions = {}
-        self._calculate_node_positions(tree_structure, 400, 50, 300, height, positions)
-
-        # 绘制连线
-        self._draw_tree_connections(tree_structure, positions)
-
-        # 绘制节点
-        self._draw_bst_nodes(tree_structure, positions)
 
     def _draw_bst_nodes(self, node, positions):
         """绘制BST的节点（使用不同颜色）"""
         if node is None:
             return
 
-        pos = positions.get(node['data'])
+        pos = positions.get(node['id'])
         if pos:
             x, y = pos
             node_width = 40
@@ -426,8 +519,8 @@ class GraphicsView(QGraphicsView):
             text.setPos(x - text_rect.width() / 2, y - text_rect.height() / 2)
 
         # 递归绘制子节点
-        if node['left'] is not None:
+        if node.get('left') is not None:
             self._draw_bst_nodes(node['left'], positions)
 
-        if node['right'] is not None:
+        if node.get('right') is not None:
             self._draw_bst_nodes(node['right'], positions)

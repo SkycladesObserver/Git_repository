@@ -1,41 +1,38 @@
 from .binary_tree_node import BinaryTreeNode
-
+import uuid
 
 class BinarySearchTree:
     """二叉搜索树实现"""
 
     def __init__(self):
         self.root = None
-
-    def is_empty(self):
-        return self.root is None
+        self.node_counter = 0  # 节点计数器，用于生成唯一ID
 
     def insert(self, data):
-        """插入节点（递归实现）"""
+        """插入节点"""
+        # 为每个节点创建唯一标识符
+        self.node_counter += 1
+        node_data = {
+            'value': data,
+            'id': f"bst_{self.node_counter}"  # 唯一标识符
+        }
+
         if self.root is None:
-            self.root = BinaryTreeNode(data)
+            self.root = BinaryTreeNode(node_data)
             return True
         else:
-            return self._insert_recursive(self.root, data)
+            return self._insert_recursive(self.root, node_data)
 
     def _insert_recursive(self, node, data):
         """递归插入辅助方法"""
-        if data < node.data:
+        if data['value'] < node.data['value']:
             if node.left is None:
                 node.left = BinaryTreeNode(data)
                 node.left.parent = node
                 return True
             else:
                 return self._insert_recursive(node.left, data)
-        elif data > node.data:
-            if node.right is None:
-                node.right = BinaryTreeNode(data)
-                node.right.parent = node
-                return True
-            else:
-                return self._insert_recursive(node.right, data)
-        else:
-            # 重复值，可以根据需求处理（这里我们允许重复值，插入到右子树）
+        else:  # 允许重复值，插入到右子树
             if node.right is None:
                 node.right = BinaryTreeNode(data)
                 node.right.parent = node
@@ -52,9 +49,9 @@ class BinarySearchTree:
         if node is None:
             return None
 
-        if data == node.data:
+        if data == node.data['value']:
             return node
-        elif data < node.data:
+        elif data < node.data['value']:
             return self._search_recursive(node.left, data)
         else:
             return self._search_recursive(node.right, data)
@@ -68,9 +65,9 @@ class BinarySearchTree:
         if node is None:
             return None
 
-        if data < node.data:
+        if data < node.data['value']:
             node.left = self._delete_recursive(node.left, data)
-        elif data > node.data:
+        elif data > node.data['value']:
             node.right = self._delete_recursive(node.right, data)
         else:
             # 找到要删除的节点
@@ -82,7 +79,7 @@ class BinarySearchTree:
                 # 有两个子节点，找到右子树的最小节点
                 min_node = self._find_min(node.right)
                 node.data = min_node.data
-                node.right = self._delete_recursive(node.right, min_node.data)
+                node.right = self._delete_recursive(node.right, min_node.data['value'])
 
         return node
 
@@ -103,7 +100,8 @@ class BinarySearchTree:
                 return None
 
             return {
-                'data': node.data,
+                'data': node.data['value'],  # 只显示值
+                'id': node.data['id'],  # 唯一标识符
                 'left': build_structure(node.left),
                 'right': build_structure(node.right)
             }
@@ -113,3 +111,4 @@ class BinarySearchTree:
     def clear(self):
         """清空树"""
         self.root = None
+        self.node_counter = 0

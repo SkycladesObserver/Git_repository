@@ -188,21 +188,19 @@ class MainWindow(QMainWindow):
         self.update_display("队列已清空")
 
     # 二叉树操作方法
+
     def binary_tree_insert_level(self):
         """二叉树层次插入"""
         value = self.controls_panel.bt_value_spin.value()
 
-        # 获取当前树的层次遍历结果
-        current_level_order = self.binary_tree.get_level_order()
-
-        # 添加新值到列表末尾
-        current_level_order.append(value)
-
-        # 重新构建树
-        self.binary_tree = BinaryTree()
-        self.binary_tree.insert_level_order(current_level_order)
-
-        self.update_display(f"二叉树层次插入: {value}")
+        try:
+            success = self.binary_tree.insert_level_order(value)
+            if success:
+                self.update_display(f"二叉树层次插入: {value}")
+            else:
+                self.status_bar.showMessage("错误: 无法插入节点")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
 
     def binary_tree_batch_insert(self):
         """二叉树批量插入"""
@@ -211,12 +209,12 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage("错误: 请输入有效的数值")
             return
 
-        # 重新构建树
-        self.binary_tree = BinaryTree()
-        self.binary_tree.insert_level_order(values)
-
-        self.update_display(f"二叉树批量插入: {', '.join(map(str, values))}")
-        self.controls_panel.clear_binary_tree_batch_input()
+        try:
+            self.binary_tree.insert_level_order_batch(values)
+            self.update_display(f"二叉树批量插入: {', '.join(map(str, values))}")
+            self.controls_panel.clear_binary_tree_batch_input()
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
 
     def clear_binary_tree(self):
         """清空二叉树"""
@@ -341,11 +339,11 @@ class MainWindow(QMainWindow):
             # 二叉树指令
             elif parts[0] == "bt_insert" and len(parts) > 1:
                 value = int(parts[1])
-                current_level_order = self.binary_tree.get_level_order()
-                current_level_order.append(value)
-                self.binary_tree = BinaryTree()
-                self.binary_tree.insert_level_order(current_level_order)
-                self.update_display(f"指令执行: {command}")
+                success = self.binary_tree.insert_level_order(value)
+                if success:
+                    self.update_display(f"指令执行: {command}")
+                else:
+                    self.status_bar.showMessage(f"指令执行失败: {command}")
 
             # 二叉搜索树指令
             elif parts[0] == "bst_insert" and len(parts) > 1:
