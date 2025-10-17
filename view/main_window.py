@@ -7,6 +7,7 @@ from model.stack import Stack
 from model.queue import Queue
 from model.binary_tree import BinaryTree
 from model.binary_search_tree import BinarySearchTree
+from model.huffman_tree import HuffmanTree
 
 
 class MainWindow(QMainWindow):
@@ -18,7 +19,8 @@ class MainWindow(QMainWindow):
         self.stack = Stack()
         self.queue = Queue()
         self.binary_tree = BinaryTree()
-        self.bst = BinarySearchTree()  # 创建二叉搜索树实例
+        self.bst = BinarySearchTree()
+        self.huffman_tree = HuffmanTree()  # 创建哈夫曼树实例
         self.current_ds = "链表"
         self.init_ui()
         self.connect_signals()
@@ -89,6 +91,15 @@ class MainWindow(QMainWindow):
             self.bst_delete,
             self.clear_bst,
             self.bst_batch_insert
+        )
+
+        # 连接哈夫曼树操作
+        self.controls_panel.connect_huffman_signals(
+            self.huffman_build_from_text,
+            self.huffman_build_from_frequency,
+            self.huffman_encode,
+            self.huffman_decode,
+            self.clear_huffman
         )
 
         # 连接数据结构选择
@@ -267,6 +278,70 @@ class MainWindow(QMainWindow):
         self.bst = BinarySearchTree()
         self.update_display("二叉搜索树已清空")
 
+    # 哈夫曼树操作方法
+    def huffman_build_from_text(self):
+        """从文本构建哈夫曼树"""
+        text = self.controls_panel.get_huffman_text()
+        if not text:
+            self.status_bar.showMessage("错误: 请输入文本")
+            return
+
+        try:
+            self.huffman_tree.build_from_text(text)
+            self.update_display(f"哈夫曼树构建完成: '{text}'")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def huffman_build_from_frequency(self):
+        """从频率构建哈夫曼树"""
+        frequency = self.controls_panel.get_huffman_frequency()
+        if not frequency:
+            self.status_bar.showMessage("错误: 请输入有效的频率数据")
+            return
+
+        try:
+            self.huffman_tree.build_from_frequency(frequency)
+            self.update_display(f"哈夫曼树构建完成: {frequency}")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def huffman_encode(self):
+        """哈夫曼编码"""
+        text = self.controls_panel.get_huffman_text()
+        if not text:
+            self.status_bar.showMessage("错误: 请输入要编码的文本")
+            return
+
+        try:
+            encoded = self.huffman_tree.encode(text)
+            self.update_display(f"编码结果: {encoded}")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def huffman_decode(self):
+        """哈夫曼解码"""
+        # 这里需要获取编码文本，简化实现，使用输入框中的文本
+        text = self.controls_panel.get_huffman_text()
+        if not text:
+            self.status_bar.showMessage("错误: 请输入要解码的二进制串")
+            return
+
+        try:
+            # 验证输入是否为二进制
+            if any(c not in '01' for c in text):
+                self.status_bar.showMessage("错误: 解码输入必须是二进制串(只包含0和1)")
+                return
+
+            decoded = self.huffman_tree.decode(text)
+            self.update_display(f"解码结果: '{decoded}'")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def clear_huffman(self):
+        """清空哈夫曼树"""
+        self.huffman_tree = HuffmanTree()
+        self.update_display("哈夫曼树已清空")
+
     def update_display(self, message=None):
         """更新显示"""
         if message:
@@ -291,6 +366,8 @@ class MainWindow(QMainWindow):
             self.graphics_view.draw_binary_tree(self.binary_tree)
         elif self.current_ds == "二叉搜索树":
             self.graphics_view.draw_binary_search_tree(self.bst)
+        elif self.current_ds == "哈夫曼树":
+            self.graphics_view.draw_huffman_tree(self.huffman_tree)
 
     def execute_command(self):
         """执行指令"""
@@ -364,6 +441,13 @@ class MainWindow(QMainWindow):
                 self.bst.delete(value)
                 self.update_display(f"指令执行: {command}")
 
+            # 哈夫曼树指令
+            elif parts[0] == "huffman_build" and len(parts) > 1:
+                # 提取文本（可能包含空格）
+                text = command[len("huffman_build"):].strip().strip("'\"")
+                self.huffman_tree.build_from_text(text)
+                self.update_display(f"指令执行: {command}")
+
             elif len(parts) >= 2 and parts[0] == "delete":
                 if "position" in command and len(parts) > 2:
                     position = int(parts[2])
@@ -386,6 +470,9 @@ class MainWindow(QMainWindow):
                 elif self.current_ds == "二叉搜索树":
                     self.bst = BinarySearchTree()
                     self.update_display("指令执行: 清空二叉搜索树")
+                elif self.current_ds == "哈夫曼树":
+                    self.huffman_tree = HuffmanTree()
+                    self.update_display("指令执行: 清空哈夫曼树")
 
             else:
                 self.status_bar.showMessage(f"未知指令: {command}")

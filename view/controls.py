@@ -17,7 +17,7 @@ class ControlsPanel(QWidget):
         ds_group = QGroupBox("数据结构选择")
         ds_layout = QHBoxLayout()
         self.ds_combo = QComboBox()
-        self.ds_combo.addItems(["链表", "栈", "队列", "二叉树", "二叉搜索树"])
+        self.ds_combo.addItems(["链表", "栈", "队列", "二叉树", "二叉搜索树", "哈夫曼树"])
         ds_layout.addWidget(QLabel("选择数据结构:"))
         ds_layout.addWidget(self.ds_combo)
         ds_layout.addStretch()
@@ -196,12 +196,49 @@ class ControlsPanel(QWidget):
         self.bst_group.setLayout(bst_layout)
         self.bst_group.setVisible(False)
 
+        # 哈夫曼树操作组
+        self.huffman_group = QGroupBox("哈夫曼树操作")
+        huffman_layout = QVBoxLayout()
+
+        # 文本输入
+        text_layout = QHBoxLayout()
+        text_layout.addWidget(QLabel("文本:"))
+        self.huffman_text_input = QLineEdit()
+        self.huffman_text_input.setPlaceholderText("输入要编码的文本")
+        text_layout.addWidget(self.huffman_text_input)
+
+        # 频率输入
+        freq_layout = QHBoxLayout()
+        freq_layout.addWidget(QLabel("频率(字符:频率):"))
+        self.huffman_freq_input = QLineEdit()
+        self.huffman_freq_input.setPlaceholderText("如: a:5,b:3,c:2")
+        freq_layout.addWidget(self.huffman_freq_input)
+
+        # 操作按钮
+        huffman_button_layout = QHBoxLayout()
+        self.huffman_build_text_btn = QPushButton("从文本构建")
+        self.huffman_build_freq_btn = QPushButton("从频率构建")
+        self.huffman_encode_btn = QPushButton("编码")
+        self.huffman_decode_btn = QPushButton("解码")
+        self.huffman_clear_btn = QPushButton("清空")
+
+        huffman_button_layout.addWidget(self.huffman_build_text_btn)
+        huffman_button_layout.addWidget(self.huffman_build_freq_btn)
+        huffman_button_layout.addWidget(self.huffman_encode_btn)
+        huffman_button_layout.addWidget(self.huffman_decode_btn)
+        huffman_button_layout.addWidget(self.huffman_clear_btn)
+
+        huffman_layout.addLayout(text_layout)
+        huffman_layout.addLayout(freq_layout)
+        huffman_layout.addLayout(huffman_button_layout)
+        self.huffman_group.setLayout(huffman_layout)
+        self.huffman_group.setVisible(False)
+
         # 指令输入
         cmd_group = QGroupBox("指令输入")
         cmd_layout = QVBoxLayout()
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText(
-            "输入指令，如: insert 10 at beginning 或 push 5 或 enqueue 8 或 bt_insert 5 或 bst_insert 5")
+        self.cmd_input.setPlaceholderText("输入指令，如: insert 10 at beginning 或 huffman_build 'hello world'")
         self.execute_cmd_btn = QPushButton("执行指令")
         cmd_layout.addWidget(self.cmd_input)
         cmd_layout.addWidget(self.execute_cmd_btn)
@@ -213,6 +250,7 @@ class ControlsPanel(QWidget):
         layout.addWidget(self.queue_group)
         layout.addWidget(self.binary_tree_group)
         layout.addWidget(self.bst_group)
+        layout.addWidget(self.huffman_group)
         layout.addWidget(cmd_group)
         layout.addStretch()
 
@@ -228,6 +266,7 @@ class ControlsPanel(QWidget):
         self.queue_group.setVisible(ds_name == "队列")
         self.binary_tree_group.setVisible(ds_name == "二叉树")
         self.bst_group.setVisible(ds_name == "二叉搜索树")
+        self.huffman_group.setVisible(ds_name == "哈夫曼树")
 
     def connect_ll_signals(self, insert_begin, insert_end, insert_pos, delete_pos, clear):
         """连接链表操作的信号"""
@@ -294,6 +333,34 @@ class ControlsPanel(QWidget):
     def clear_bst_batch_input(self):
         """清空BST批量输入框"""
         self.bst_batch_input.clear()
+
+    def connect_huffman_signals(self, build_from_text, build_from_freq, encode, decode, clear):
+        """连接哈夫曼树操作的信号"""
+        self.huffman_build_text_btn.clicked.connect(build_from_text)
+        self.huffman_build_freq_btn.clicked.connect(build_from_freq)
+        self.huffman_encode_btn.clicked.connect(encode)
+        self.huffman_decode_btn.clicked.connect(decode)
+        self.huffman_clear_btn.clicked.connect(clear)
+
+    def get_huffman_text(self):
+        """获取哈夫曼文本输入"""
+        return self.huffman_text_input.text().strip()
+
+    def get_huffman_frequency(self):
+        """获取哈夫曼频率输入"""
+        text = self.huffman_freq_input.text().strip()
+        if not text:
+            return {}
+
+        try:
+            frequency = {}
+            pairs = text.split(',')
+            for pair in pairs:
+                char, freq = pair.split(':')
+                frequency[char.strip()] = int(freq.strip())
+            return frequency
+        except ValueError:
+            return {}
 
     def get_value(self):
         """获取输入的值"""

@@ -524,3 +524,139 @@ class GraphicsView(QGraphicsView):
 
         if node.get('right') is not None:
             self._draw_bst_nodes(node['right'], positions)
+
+    def draw_huffman_tree(self, huffman_tree):
+        """绘制哈夫曼树"""
+        self.clear_scene()
+
+        tree_structure = huffman_tree.get_tree_structure()
+        if tree_structure is None:
+            empty_label = self.scene.addText("哈夫曼树为空")
+            empty_label.setDefaultTextColor(Qt.red)
+            empty_label.setFont(QFont("Arial", 14, QFont.Bold))
+            empty_label.setPos(350, 200)
+            return
+
+        # 使用改进的布局算法计算节点位置
+        positions = self.calculate_tree_layout(tree_structure)
+
+        # 绘制连线
+        self._draw_huffman_connections(tree_structure, positions)
+
+        # 绘制节点
+        self._draw_huffman_nodes(tree_structure, positions)
+
+        # 显示编码表
+        self._display_huffman_codes(huffman_tree.get_codes())
+
+    def _draw_huffman_connections(self, node, positions):
+        """绘制哈夫曼树的连线，并标注0/1"""
+        if node is None:
+            return
+
+        current_pos = positions.get(node['id'])
+
+        if current_pos and node.get('left') is not None:
+            left_pos = positions.get(node['left']['id'])
+            if left_pos:
+                # 绘制从父节点到左子节点的连线
+                line = self.scene.addLine(current_pos[0], current_pos[1], left_pos[0], left_pos[1])
+                line.setPen(QPen(Qt.black, 2))
+
+                # 在连线中间标注"0"
+                mid_x = (current_pos[0] + left_pos[0]) / 2
+                mid_y = (current_pos[1] + left_pos[1]) / 2
+                zero_text = self.scene.addText("0")
+                zero_text.setDefaultTextColor(Qt.blue)
+                zero_text.setFont(QFont("Arial", 10, QFont.Bold))
+                zero_text.setPos(mid_x, mid_y)
+
+        if current_pos and node.get('right') is not None:
+            right_pos = positions.get(node['right']['id'])
+            if right_pos:
+                # 绘制从父节点到右子节点的连线
+                line = self.scene.addLine(current_pos[0], current_pos[1], right_pos[0], right_pos[1])
+                line.setPen(QPen(Qt.black, 2))
+
+                # 在连线中间标注"1"
+                mid_x = (current_pos[0] + right_pos[0]) / 2
+                mid_y = (current_pos[1] + right_pos[1]) / 2
+                one_text = self.scene.addText("1")
+                one_text.setDefaultTextColor(Qt.blue)
+                one_text.setFont(QFont("Arial", 10, QFont.Bold))
+                one_text.setPos(mid_x, mid_y)
+
+        # 递归绘制子节点的连线
+        if node.get('left') is not None:
+            self._draw_huffman_connections(node['left'], positions)
+
+        if node.get('right') is not None:
+            self._draw_huffman_connections(node['right'], positions)
+
+    def _draw_huffman_nodes(self, node, positions):
+        """绘制哈夫曼树的节点"""
+        if node is None:
+            return
+
+        pos = positions.get(node['id'])
+        if pos:
+            x, y = pos
+            node_width = 60
+            node_height = 40
+
+            # 根据节点类型选择颜色
+            if node.get('is_leaf', False):
+                color = QColor(255, 200, 150)  # 叶子节点 - 橙色
+            else:
+                color = QColor(200, 200, 255)  # 内部节点 - 淡蓝色
+
+            # 绘制节点矩形
+            rect = self.scene.addRect(x - node_width / 2, y - node_height / 2, node_width, node_height)
+            rect.setBrush(QBrush(color))
+            rect.setPen(QPen(Qt.black, 2))
+
+            # 绘制节点数据
+            text = self.scene.addText(str(node['data']))
+            text.setDefaultTextColor(Qt.black)
+            text.setFont(QFont("Arial", 9, QFont.Bold))
+            text_rect = text.boundingRect()
+            text.setPos(x - text_rect.width() / 2, y - text_rect.height() / 2)
+
+        # 递归绘制子节点
+        if node.get('left') is not None:
+            self._draw_huffman_nodes(node['left'], positions)
+
+        if node.get('right') is not None:
+            self._draw_huffman_nodes(node['right'], positions)
+
+    def _display_huffman_codes(self, codes):
+        """显示哈夫曼编码表"""
+        if not codes:
+            return
+
+        # 在右侧显示编码表
+        x_pos = 650
+        y_pos = 50
+
+        title = self.scene.addText("哈夫曼编码表:")
+        title.setDefaultTextColor(Qt.darkBlue)
+        title.setFont(QFont("Arial", 12, QFont.Bold))
+        title.setPos(x_pos, y_pos)
+
+        y_pos += 30
+
+        for char, code in codes.items():
+            # 处理特殊字符（如空格、换行符等）
+            display_char = char
+            if char == ' ':
+                display_char = "' '"
+            elif char == '\n':
+                display_char = "\\n"
+            elif char == '\t':
+                display_char = "\\t"
+
+            code_text = self.scene.addText(f"{display_char}: {code}")
+            code_text.setDefaultTextColor(Qt.darkGreen)
+            code_text.setFont(QFont("Arial", 10))
+            code_text.setPos(x_pos, y_pos)
+            y_pos += 20
