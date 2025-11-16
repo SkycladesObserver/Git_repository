@@ -660,3 +660,98 @@ class GraphicsView(QGraphicsView):
             code_text.setFont(QFont("Arial", 10))
             code_text.setPos(x_pos, y_pos)
             y_pos += 20
+
+    def draw_avl_tree(self, avl_tree):
+        """绘制AVL树"""
+        self.clear_scene()
+
+        tree_structure = avl_tree.get_tree_structure()
+        if tree_structure is None:
+            empty_label = self.scene.addText("AVL树为空")
+            empty_label.setDefaultTextColor(Qt.red)
+            empty_label.setFont(QFont("Arial", 14, QFont.Bold))
+            empty_label.setPos(350, 200)
+            return
+
+        # 使用改进的布局算法计算节点位置
+        positions = self.calculate_tree_layout(tree_structure)
+
+        # 绘制连线
+        self._draw_tree_connections(tree_structure, positions)
+
+        # 绘制节点
+        self._draw_avl_nodes(tree_structure, positions)
+
+        # 显示AVL树说明
+        self._display_avl_info()
+
+    def _draw_avl_nodes(self, node, positions):
+        """绘制AVL树的节点，显示平衡因子"""
+        if node is None:
+            return
+
+        pos = positions.get(node['id'])
+        if pos:
+            x, y = pos
+            node_width = 50
+            node_height = 50
+
+            # 根据平衡因子选择颜色
+            balance = node.get('balance', 0)
+            if balance == 0:
+                color = QColor(144, 238, 144)  # 平衡 - 浅绿色
+            elif abs(balance) == 1:
+                color = QColor(255, 255, 150)  # 基本平衡 - 浅黄色
+            else:
+                color = QColor(255, 150, 150)  # 不平衡 - 浅红色
+
+            # 绘制节点圆形
+            ellipse = self.scene.addEllipse(x - node_width / 2, y - node_height / 2, node_width, node_height)
+            ellipse.setBrush(QBrush(color))
+            ellipse.setPen(QPen(Qt.black, 2))
+
+            # 绘制节点数据（值和平衡因子）
+            text = self.scene.addText(str(node['data']))
+            text.setDefaultTextColor(Qt.black)
+            text.setFont(QFont("Arial", 9, QFont.Bold))
+            text_rect = text.boundingRect()
+            text.setPos(x - text_rect.width() / 2, y - text_rect.height() / 2)
+
+        # 递归绘制子节点
+        if node.get('left') is not None:
+            self._draw_avl_nodes(node['left'], positions)
+
+        if node.get('right') is not None:
+            self._draw_avl_nodes(node['right'], positions)
+
+    def _display_avl_info(self):
+        """显示AVL树说明"""
+        x_pos = 650
+        y_pos = 50
+
+        title = self.scene.addText("AVL树说明:")
+        title.setDefaultTextColor(Qt.darkBlue)
+        title.setFont(QFont("Arial", 12, QFont.Bold))
+        title.setPos(x_pos, y_pos)
+
+        y_pos += 30
+
+        info_lines = [
+            "平衡因子 = 左子树高度 - 右子树高度",
+            "平衡: 绿色 (平衡因子 = 0)",
+            "基本平衡: 黄色 (平衡因子 = ±1)",
+            "不平衡: 红色 (平衡因子 = ±2)",
+            "",
+            "旋转操作:",
+            "- 左左情况: 右旋转",
+            "- 右右情况: 左旋转",
+            "- 左右情况: 先左旋后右旋",
+            "- 右左情况: 先右旋后左旋"
+        ]
+
+        for line in info_lines:
+            info_text = self.scene.addText(line)
+            info_text.setDefaultTextColor(Qt.darkGreen)
+            info_text.setFont(QFont("Arial", 9))
+            info_text.setPos(x_pos, y_pos)
+            y_pos += 20

@@ -13,11 +13,22 @@ class ControlsPanel(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
+        # 快速操作栏
+        quick_action_layout = QHBoxLayout()
+        self.save_btn = QPushButton("保存")
+        self.load_btn = QPushButton("加载")
+        self.help_btn = QPushButton("帮助")
+
+        quick_action_layout.addWidget(self.save_btn)
+        quick_action_layout.addWidget(self.load_btn)
+        quick_action_layout.addWidget(self.help_btn)
+        quick_action_layout.addStretch()
+
         # 数据结构选择
         ds_group = QGroupBox("数据结构选择")
         ds_layout = QHBoxLayout()
         self.ds_combo = QComboBox()
-        self.ds_combo.addItems(["链表", "栈", "队列", "二叉树", "二叉搜索树", "哈夫曼树"])
+        self.ds_combo.addItems(["链表", "栈", "队列", "二叉树", "二叉搜索树", "哈夫曼树", "AVL树"])
         ds_layout.addWidget(QLabel("选择数据结构:"))
         ds_layout.addWidget(self.ds_combo)
         ds_layout.addStretch()
@@ -234,16 +245,57 @@ class ControlsPanel(QWidget):
         self.huffman_group.setLayout(huffman_layout)
         self.huffman_group.setVisible(False)
 
+        # AVL树操作组
+        self.avl_group = QGroupBox("AVL树操作")
+        avl_layout = QVBoxLayout()
+
+        # AVL值输入
+        avl_value_layout = QHBoxLayout()
+        avl_value_layout.addWidget(QLabel("值:"))
+        self.avl_value_spin = QSpinBox()
+        self.avl_value_spin.setRange(-999, 999)
+        self.avl_value_spin.setValue(10)
+        avl_value_layout.addWidget(self.avl_value_spin)
+        avl_value_layout.addStretch()
+
+        # AVL操作按钮
+        avl_button_layout = QHBoxLayout()
+        self.avl_insert_btn = QPushButton("插入")
+        self.avl_search_btn = QPushButton("查找")
+        self.avl_delete_btn = QPushButton("删除")
+        self.avl_clear_btn = QPushButton("清空AVL")
+
+        avl_button_layout.addWidget(self.avl_insert_btn)
+        avl_button_layout.addWidget(self.avl_search_btn)
+        avl_button_layout.addWidget(self.avl_delete_btn)
+        avl_button_layout.addWidget(self.avl_clear_btn)
+
+        # AVL批量插入
+        avl_batch_layout = QHBoxLayout()
+        self.avl_batch_input = QLineEdit()
+        self.avl_batch_input.setPlaceholderText("输入多个值，用逗号分隔，如: 10,20,5,15,25")
+        self.avl_batch_insert_btn = QPushButton("批量插入")
+
+        avl_batch_layout.addWidget(self.avl_batch_input)
+        avl_batch_layout.addWidget(self.avl_batch_insert_btn)
+
+        avl_layout.addLayout(avl_value_layout)
+        avl_layout.addLayout(avl_button_layout)
+        avl_layout.addLayout(avl_batch_layout)
+        self.avl_group.setLayout(avl_layout)
+        self.avl_group.setVisible(False)
+
         # 指令输入
         cmd_group = QGroupBox("指令输入")
         cmd_layout = QVBoxLayout()
         self.cmd_input = QLineEdit()
-        self.cmd_input.setPlaceholderText("输入指令，如: insert 10 at beginning 或 huffman_build 'hello world'")
+        self.cmd_input.setPlaceholderText("输入指令，如: insert 10 at beginning 或 avl_insert 15")
         self.execute_cmd_btn = QPushButton("执行指令")
         cmd_layout.addWidget(self.cmd_input)
         cmd_layout.addWidget(self.execute_cmd_btn)
         cmd_group.setLayout(cmd_layout)
 
+        layout.addLayout(quick_action_layout)
         layout.addWidget(ds_group)
         layout.addWidget(self.ll_group)
         layout.addWidget(self.stack_group)
@@ -251,6 +303,7 @@ class ControlsPanel(QWidget):
         layout.addWidget(self.binary_tree_group)
         layout.addWidget(self.bst_group)
         layout.addWidget(self.huffman_group)
+        layout.addWidget(self.avl_group)
         layout.addWidget(cmd_group)
         layout.addStretch()
 
@@ -258,6 +311,12 @@ class ControlsPanel(QWidget):
 
         # 连接数据结构选择信号
         self.ds_combo.currentTextChanged.connect(self.on_ds_changed)
+
+    def connect_file_signals(self, save, load, help):
+        """连接文件操作的信号"""
+        self.save_btn.clicked.connect(save)
+        self.load_btn.clicked.connect(load)
+        self.help_btn.clicked.connect(help)
 
     def on_ds_changed(self, ds_name):
         """当数据结构改变时显示对应的操作组"""
@@ -267,6 +326,7 @@ class ControlsPanel(QWidget):
         self.binary_tree_group.setVisible(ds_name == "二叉树")
         self.bst_group.setVisible(ds_name == "二叉搜索树")
         self.huffman_group.setVisible(ds_name == "哈夫曼树")
+        self.avl_group.setVisible(ds_name == "AVL树")
 
     def connect_ll_signals(self, insert_begin, insert_end, insert_pos, delete_pos, clear):
         """连接链表操作的信号"""
@@ -293,6 +353,30 @@ class ControlsPanel(QWidget):
         self.bt_insert_level_btn.clicked.connect(insert_level)
         self.bt_clear_btn.clicked.connect(clear)
         self.bt_batch_insert_btn.clicked.connect(batch_insert)
+
+    def connect_avl_signals(self, insert, search, delete, clear, batch_insert):
+        """连接AVL树操作的信号"""
+        self.avl_insert_btn.clicked.connect(insert)
+        self.avl_search_btn.clicked.connect(search)
+        self.avl_delete_btn.clicked.connect(delete)
+        self.avl_clear_btn.clicked.connect(clear)
+        self.avl_batch_insert_btn.clicked.connect(batch_insert)
+
+    def get_avl_batch_values(self):
+        """获取AVL批量插入的值"""
+        text = self.avl_batch_input.text().strip()
+        if not text:
+            return []
+
+        try:
+            values = [int(x.strip()) for x in text.split(',')]
+            return values
+        except ValueError:
+            return []
+
+    def clear_avl_batch_input(self):
+        """清空AVL批量输入框"""
+        self.avl_batch_input.clear()
 
     def get_binary_tree_batch_values(self):
         """获取批量插入的值"""

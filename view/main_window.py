@@ -8,7 +8,11 @@ from model.queue import Queue
 from model.binary_tree import BinaryTree
 from model.binary_search_tree import BinarySearchTree
 from model.huffman_tree import HuffmanTree
-
+from model.avl_tree import AVLTree
+from PyQt5.QtWidgets import QMenu, QAction, QMessageBox
+from utils.serializer import DataStructureSerializer
+from view.file_dialog import FileDialog
+from PyQt5.QtWidgets import QDialog, QApplication, QMainWindow  # 根据实际需要导入其他组件
 
 class MainWindow(QMainWindow):
     """主窗口"""
@@ -20,10 +24,166 @@ class MainWindow(QMainWindow):
         self.queue = Queue()
         self.binary_tree = BinaryTree()
         self.bst = BinarySearchTree()
-        self.huffman_tree = HuffmanTree()  # 创建哈夫曼树实例
+        self.huffman_tree = HuffmanTree()
+        self.avl_tree = AVLTree()  # 创建AVL树实例
         self.current_ds = "链表"
         self.init_ui()
         self.connect_signals()
+        self.create_menus()
+
+    def create_menus(self):
+        """创建菜单栏"""
+        menubar = self.menuBar()
+
+        # 文件菜单
+        file_menu = menubar.addMenu('文件')
+
+        # 保存操作
+        save_action = QAction('保存', self)
+        save_action.setShortcut('Ctrl+S')
+        save_action.triggered.connect(self.save_data_structure)
+        file_menu.addAction(save_action)
+
+        # 加载操作
+        load_action = QAction('加载', self)
+        load_action.setShortcut('Ctrl+L')
+        load_action.triggered.connect(self.load_data_structure)
+        file_menu.addAction(load_action)
+
+        file_menu.addSeparator()
+
+        # 退出操作
+        exit_action = QAction('退出', self)
+        exit_action.setShortcut('Ctrl+Q')
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
+        # 帮助菜单
+        help_menu = menubar.addMenu('帮助')
+
+        about_action = QAction('关于', self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
+
+    def save_data_structure(self):
+        """保存当前数据结构"""
+        try:
+            # 根据当前数据结构类型序列化数据
+            serializer = DataStructureSerializer()
+            data = None
+
+            if self.current_ds == "链表":
+                data = serializer.serialize_linked_list(self.linked_list)
+            elif self.current_ds == "栈":
+                data = serializer.serialize_stack(self.stack)
+            elif self.current_ds == "队列":
+                data = serializer.serialize_queue(self.queue)
+            elif self.current_ds == "二叉树":
+                data = serializer.serialize_binary_tree(self.binary_tree)
+            elif self.current_ds == "二叉搜索树":
+                data = serializer.serialize_bst(self.bst)
+            elif self.current_ds == "哈夫曼树":
+                data = serializer.serialize_huffman(self.huffman_tree)
+            elif self.current_ds == "AVL树":
+                data = serializer.serialize_avl(self.avl_tree)
+            else:
+                QMessageBox.warning(self, "保存失败", f"不支持保存 {self.current_ds} 类型")
+                return
+
+            # 显示保存对话框
+            dialog = FileDialog(self, mode="save")
+            if dialog.exec_() == QDialog.Accepted:
+                filename = dialog.get_selected_file()
+                if filename:
+                    serializer.save_to_file(data, filename)
+                    self.status_bar.showMessage(f"数据结构已保存到: {filename}")
+                else:
+                    self.status_bar.showMessage("保存取消")
+            else:
+                self.status_bar.showMessage("保存取消")
+
+        except Exception as e:
+            QMessageBox.critical(self, "保存错误", f"保存失败: {str(e)}")
+
+    def load_data_structure(self):
+        """加载数据结构"""
+        try:
+            # 显示加载对话框
+            dialog = FileDialog(self, mode="load")
+            if dialog.exec_() == QDialog.Accepted:
+                filename = dialog.get_selected_file()
+                if filename:
+                    # 从文件加载数据
+                    loaded_data = DataStructureSerializer.load_from_file(filename)
+                    data_type = loaded_data.get("type")
+
+                    # 根据类型反序列化
+                    serializer = DataStructureSerializer()
+
+                    if data_type == "LinkedList":
+                        self.linked_list = serializer.deserialize_linked_list(loaded_data["data"])
+                        self.current_ds = "链表"
+                    elif data_type == "Stack":
+                        self.stack = serializer.deserialize_stack(loaded_data)
+                        self.current_ds = "栈"
+                    elif data_type == "Queue":
+                        self.queue = serializer.deserialize_queue(loaded_data)
+                        self.current_ds = "队列"
+                    elif data_type == "BinaryTree":
+                        self.binary_tree = serializer.deserialize_binary_tree(loaded_data)
+                        self.current_ds = "二叉树"
+                    elif data_type == "BinarySearchTree":
+                        self.bst = serializer.deserialize_bst(loaded_data)
+                        self.current_ds = "二叉搜索树"
+                    elif data_type == "HuffmanTree":
+                        self.huffman_tree = serializer.deserialize_huffman(loaded_data)
+                        self.current_ds = "哈夫曼树"
+                    elif data_type == "AVLTree":
+                        self.avl_tree = serializer.deserialize_avl(loaded_data)
+                        self.current_ds = "AVL树"
+                    else:
+                        QMessageBox.warning(self, "加载失败", f"未知的数据结构类型: {data_type}")
+                        return
+
+                    # 更新界面
+                    self.controls_panel.ds_combo.setCurrentText(self.current_ds)
+                    self.update_display(f"已加载: {filename}")
+
+                else:
+                    self.status_bar.showMessage("加载取消")
+            else:
+                self.status_bar.showMessage("加载取消")
+
+        except Exception as e:
+            QMessageBox.critical(self, "加载错误", f"加载失败: {str(e)}")
+
+    def show_about(self):
+        """显示关于对话框"""
+        about_text = """
+        <h2>数据结构可视化模拟器</h2>
+        <p>版本 1.0</p>
+        <p>一个用于学习和演示数据结构的可视化工具。</p>
+        <p><b>支持的数据结构:</b></p>
+        <ul>
+            <li>链表（顺序表、链表）</li>
+            <li>栈（顺序栈）</li>
+            <li>队列</li>
+            <li>二叉树</li>
+            <li>二叉搜索树（BST）</li>
+            <li>哈夫曼树</li>
+            <li>AVL树（平衡二叉搜索树）</li>
+        </ul>
+        <p><b>功能特性:</b></p>
+        <ul>
+            <li>动态可视化数据结构操作</li>
+            <li>支持文件保存和加载</li>
+            <li>指令系统支持</li>
+            <li>良好的用户界面</li>
+        </ul>
+        <p>开发基于 PyQt5 框架。</p>
+        """
+
+        QMessageBox.about(self, "关于", about_text)
 
     def init_ui(self):
         self.setWindowTitle("数据结构可视化模拟器")
@@ -54,6 +214,12 @@ class MainWindow(QMainWindow):
 
     def connect_signals(self):
         """连接信号和槽"""
+        # 连接文件操作
+        self.controls_panel.connect_file_signals(
+            self.save_data_structure,
+            self.load_data_structure,
+            self.show_about
+        )
         # 连接链表操作
         self.controls_panel.connect_ll_signals(
             self.insert_beginning,
@@ -100,6 +266,15 @@ class MainWindow(QMainWindow):
             self.huffman_encode,
             self.huffman_decode,
             self.clear_huffman
+        )
+
+        # 连接AVL树操作
+        self.controls_panel.connect_avl_signals(
+            self.avl_insert,
+            self.avl_search,
+            self.avl_delete,
+            self.clear_avl,
+            self.avl_batch_insert
         )
 
         # 连接数据结构选择
@@ -342,6 +517,52 @@ class MainWindow(QMainWindow):
         self.huffman_tree = HuffmanTree()
         self.update_display("哈夫曼树已清空")
 
+    # AVL树操作方法
+    def avl_insert(self):
+        """AVL插入"""
+        value = self.controls_panel.avl_value_spin.value()
+        try:
+            self.avl_tree.insert(value)
+            self.update_display(f"AVL插入: {value}")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def avl_search(self):
+        """AVL查找"""
+        value = self.controls_panel.avl_value_spin.value()
+        node = self.avl_tree.search(value)
+        if node:
+            self.update_display(f"AVL查找: 找到 {value}")
+        else:
+            self.update_display(f"AVL查找: 未找到 {value}")
+
+    def avl_delete(self):
+        """AVL删除"""
+        value = self.controls_panel.avl_value_spin.value()
+        try:
+            self.avl_tree.delete(value)
+            self.update_display(f"AVL删除: {value}")
+        except Exception as e:
+            self.status_bar.showMessage(f"错误: {str(e)}")
+
+    def avl_batch_insert(self):
+        """AVL批量插入"""
+        values = self.controls_panel.get_avl_batch_values()
+        if not values:
+            self.status_bar.showMessage("错误: 请输入有效的数值")
+            return
+
+        for value in values:
+            self.avl_tree.insert(value)
+
+        self.update_display(f"AVL批量插入: {', '.join(map(str, values))}")
+        self.controls_panel.clear_avl_batch_input()
+
+    def clear_avl(self):
+        """清空AVL树"""
+        self.avl_tree = AVLTree()
+        self.update_display("AVL树已清空")
+
     def update_display(self, message=None):
         """更新显示"""
         if message:
@@ -368,6 +589,8 @@ class MainWindow(QMainWindow):
             self.graphics_view.draw_binary_search_tree(self.bst)
         elif self.current_ds == "哈夫曼树":
             self.graphics_view.draw_huffman_tree(self.huffman_tree)
+        elif self.current_ds == "AVL树":
+            self.graphics_view.draw_avl_tree(self.avl_tree)
 
     def execute_command(self):
         """执行指令"""
@@ -448,6 +671,25 @@ class MainWindow(QMainWindow):
                 self.huffman_tree.build_from_text(text)
                 self.update_display(f"指令执行: {command}")
 
+            # AVL树指令
+            elif parts[0] == "avl_insert" and len(parts) > 1:
+                value = int(parts[1])
+                self.avl_tree.insert(value)
+                self.update_display(f"指令执行: {command}")
+
+            elif parts[0] == "avl_search" and len(parts) > 1:
+                value = int(parts[1])
+                node = self.avl_tree.search(value)
+                if node:
+                    self.update_display(f"指令执行: {command}, 找到 {value}")
+                else:
+                    self.update_display(f"指令执行: {command}, 未找到 {value}")
+
+            elif parts[0] == "avl_delete" and len(parts) > 1:
+                value = int(parts[1])
+                self.avl_tree.delete(value)
+                self.update_display(f"指令执行: {command}")
+
             elif len(parts) >= 2 and parts[0] == "delete":
                 if "position" in command and len(parts) > 2:
                     position = int(parts[2])
@@ -473,6 +715,9 @@ class MainWindow(QMainWindow):
                 elif self.current_ds == "哈夫曼树":
                     self.huffman_tree = HuffmanTree()
                     self.update_display("指令执行: 清空哈夫曼树")
+                elif self.current_ds == "AVL树":
+                    self.avl_tree = AVLTree()
+                    self.update_display("指令执行: 清空AVL树")
 
             else:
                 self.status_bar.showMessage(f"未知指令: {command}")
