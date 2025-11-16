@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "created": "2025-11-16T17:56:22.406590",
+    "data_structure": "LinkedList"
+  },
+  "data": {
+    "type": "LinkedList",
+    "data": [
+      10,
+      10,
+      10
+    ]
+  }
+}
