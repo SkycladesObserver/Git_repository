@@ -14,8 +14,8 @@ class FileDialog(QDialog):
         self.selected_file = None
         self.init_ui()
 
-        if mode == "load":
-            self.load_file_list()
+        # 修复：不管什么模式都加载文件列表
+        self.load_file_list()
 
     def init_ui(self):
         """初始化UI"""
@@ -73,12 +73,20 @@ class FileDialog(QDialog):
         # 查找保存目录
         save_dir = self.get_save_directory()
         if not os.path.exists(save_dir):
+            # 如果没有保存目录，添加提示信息
+            self.file_list.addItem("暂无保存目录")
             return
 
         # 添加所有 .dsv 文件（Data Structure Visualization）
+        files_found = False
         for filename in os.listdir(save_dir):
             if filename.endswith('.dsv'):
                 self.file_list.addItem(filename)
+                files_found = True
+
+        # 如果没有文件，显示提示信息
+        if not files_found:
+            self.file_list.addItem("暂无保存的文件")
 
     def get_save_directory(self):
         """获取保存目录"""
@@ -91,12 +99,25 @@ class FileDialog(QDialog):
     def on_selection_changed(self):
         """当选择改变时"""
         if self.mode == "save":
-            self.overwrite_btn.setEnabled(len(self.file_list.selectedItems()) > 0)
+            has_selection = len(self.file_list.selectedItems()) > 0
+            # 确保选中的不是提示文本
+            if has_selection and self.file_list.selectedItems()[0].text() not in ["暂无保存目录", "暂无保存的文件"]:
+                self.overwrite_btn.setEnabled(True)
+            else:
+                self.overwrite_btn.setEnabled(False)
         else:
-            self.load_btn.setEnabled(len(self.file_list.selectedItems()) > 0)
+            has_selection = len(self.file_list.selectedItems()) > 0
+            if has_selection and self.file_list.selectedItems()[0].text() not in ["暂无保存目录", "暂无保存的文件"]:
+                self.load_btn.setEnabled(True)
+            else:
+                self.load_btn.setEnabled(False)
 
     def on_file_selected(self, item):
         """当双击文件时"""
+        # 检查是否是有效文件（不是提示文本）
+        if item.text() in ["暂无保存目录", "暂无保存的文件"]:
+            return
+
         if self.mode == "save":
             self.overwrite_file()
         else:
@@ -121,16 +142,20 @@ class FileDialog(QDialog):
         selected_items = self.file_list.selectedItems()
         if selected_items:
             filename = selected_items[0].text()
-            self.selected_file = os.path.join(self.get_save_directory(), filename)
-            self.accept()
+            # 再次确认不是提示文本
+            if filename not in ["暂无保存目录", "暂无保存的文件"]:
+                self.selected_file = os.path.join(self.get_save_directory(), filename)
+                self.accept()
 
     def load_file(self):
         """加载选中文件"""
         selected_items = self.file_list.selectedItems()
         if selected_items:
             filename = selected_items[0].text()
-            self.selected_file = os.path.join(self.get_save_directory(), filename)
-            self.accept()
+            # 再次确认不是提示文本
+            if filename not in ["暂无保存目录", "暂无保存的文件"]:
+                self.selected_file = os.path.join(self.get_save_directory(), filename)
+                self.accept()
 
     def get_selected_file(self):
         """获取选中的文件"""

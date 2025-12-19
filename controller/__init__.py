@@ -1,7 +1,3 @@
-"""
-控制器包
-包含业务逻辑和动画控制
-"""
+from .animation_controller import AnimationController
 
-# 这个文件目前为空，因为我们还没有实现具体的控制器
-# 随着项目扩展，我们会添加 AnimationController 等类
+__all__ = ['AnimationController']

@@ -49,18 +49,137 @@ class GraphicsView(QGraphicsView):
         self.animation_timeline = []
         self.current_animation_index = 0
 
+        # 添加高亮支持
+        self.highlighted_nodes = {}  # {node_id: color}
+
         # 设置背景
         self.setStyleSheet("background-color: #f5f5f5; border: 1px solid #cccccc;")
+
+    def highlight_nodes(self, node_ids, color, description=""):
+        """高亮指定的节点"""
+        print(f"GraphicsView: 高亮节点 {node_ids} 颜色 {color}")  # 调试输出
+        self.highlighted_nodes = {node_id: color for node_id in node_ids}
+        
+        # 显示操作描述文本
+        if description:
+            self._show_operation_text(description)
+
+        # 强制重绘整个场景
+        self._redraw_current_structure()
+    
+    def _show_operation_text(self, text, duration=2000):
+        """显示操作说明文本"""
+        # 清除之前的文本
+        for item in self.scene.items():
+            if hasattr(item, 'is_operation_text') and item.is_operation_text:
+                self.scene.removeItem(item)
+        
+        # 添加新文本
+        text_item = self.scene.addText(text)
+        text_item.setDefaultTextColor(QColor(0, 100, 200))
+        text_item.setFont(QFont("Arial", 12, QFont.Bold))
+        text_item.setPos(50, 20)
+        text_item.is_operation_text = True
+        
+        # 设置定时器自动清除
+        QTimer.singleShot(duration, lambda: self._clear_operation_text())
+    
+    def _clear_operation_text(self):
+        """清除操作文本"""
+        for item in self.scene.items():
+            if hasattr(item, 'is_operation_text') and item.is_operation_text:
+                self.scene.removeItem(item)
+
+    def clear_highlights(self):
+        """清除所有高亮"""
+        self.highlighted_nodes = {}
+        self._redraw_current_structure()
+
+    def _redraw_current_structure(self):
+        """根据当前数据结构重新绘制"""
+        # 清空场景
+        self.scene.clear()
+
+        # 根据主窗口的当前数据结构重新绘制
+        main_window = self.parent()
+        if hasattr(main_window, 'current_ds'):
+            current_ds = main_window.current_ds
+
+            if current_ds == "链表":
+                if hasattr(main_window, 'linked_list') and main_window.linked_list.head is not None:
+                    self.draw_linked_list(main_window.linked_list)
+            elif current_ds == "栈":
+                if hasattr(main_window, 'stack'):
+                    self.draw_stack(main_window.stack)
+            elif current_ds == "队列":
+                if hasattr(main_window, 'queue'):
+                    self.draw_queue(main_window.queue)
+            elif current_ds == "二叉树":
+                if hasattr(main_window, 'binary_tree'):
+                    self.draw_binary_tree(main_window.binary_tree)
+            elif current_ds == "二叉搜索树":
+                if hasattr(main_window, 'bst'):
+                    self.draw_binary_search_tree(main_window.bst)
+            elif current_ds == "哈夫曼树":
+                if hasattr(main_window, 'huffman_tree'):
+                    self.draw_huffman_tree(main_window.huffman_tree)
+            elif current_ds == "AVL树":
+                if hasattr(main_window, 'avl_tree'):
+                    self.draw_avl_tree(main_window.avl_tree)
+
+    # 修改绘制方法，在绘制节点时检查高亮状态
+    def _draw_tree_nodes(self, node, positions):
+        """绘制树的节点，支持高亮"""
+        if node is None:
+            return
+
+        pos = positions.get(node['id'])
+        if pos:
+            x, y = pos
+            node_width = 40
+            node_height = 40
+
+            # 检查是否需要高亮
+            highlight_color = self.highlighted_nodes.get(node['id'])
+            if highlight_color:
+                # 使用高亮颜色
+                node_color = highlight_color
+                border_color = Qt.red
+                border_width = 3
+            else:
+                # 默认颜色
+                node_color = QColor(255, 182, 193)  # 浅粉色
+                border_color = Qt.black
+                border_width = 2
+
+            # 绘制节点圆形
+            ellipse = self.scene.addEllipse(x - node_width / 2, y - node_height / 2, node_width, node_height)
+            ellipse.setBrush(QBrush(node_color))
+            ellipse.setPen(QPen(border_color, border_width))
+
+            # 绘制节点数据
+            text = self.scene.addText(str(node['data']))
+            text.setDefaultTextColor(Qt.black)
+            text.setFont(QFont("Arial", 10, QFont.Bold))
+            text_rect = text.boundingRect()
+            text.setPos(x - text_rect.width() / 2, y - text_rect.height() / 2)
+
+        # 递归绘制子节点
+        if node.get('left') is not None:
+            self._draw_tree_nodes(node['left'], positions)
+        if node.get('right') is not None:
+            self._draw_tree_nodes(node['right'], positions)
 
     def draw_linked_list(self, linked_list):
         """绘制链表"""
         self.clear_scene()
         self.node_items = []
 
-        nodes = []
+        # 收集节点对象和位置信息
+        node_objects = []
         current = linked_list.head
         while current:
-            nodes.append(current.data)
+            node_objects.append(current)
             current = current.next
 
         # 计算布局
@@ -71,9 +190,22 @@ class GraphicsView(QGraphicsView):
         start_y = 200
 
         # 绘制节点和连线
-        for i, data in enumerate(nodes):
+        for i, node_obj in enumerate(node_objects):
             x = start_x + i * (node_width + horizontal_spacing)
             y = start_y
+            data = node_obj.data
+            node_id = id(node_obj)  # 使用节点对象的内存地址作为ID
+
+            # 检查是否需要高亮
+            highlight_color = self.highlighted_nodes.get(node_id)
+            if highlight_color:
+                node_color = highlight_color
+                border_color = Qt.red
+                border_width = 3
+            else:
+                node_color = QColor(173, 216, 230)  # 浅蓝色
+                border_color = Qt.black
+                border_width = 2
 
             # 创建图形节点
             node_item = NodeGraphicsItem(data, x, y, node_width, node_height)
@@ -81,8 +213,8 @@ class GraphicsView(QGraphicsView):
 
             # 绘制节点矩形
             rect = self.scene.addRect(x, y, node_width, node_height)
-            rect.setBrush(QBrush(QColor(173, 216, 230)))  # 浅蓝色
-            rect.setPen(QPen(Qt.black, 2))
+            rect.setBrush(QBrush(node_color))
+            rect.setPen(QPen(border_color, border_width))
 
             # 绘制节点数据
             text = self.scene.addText(str(data))
@@ -93,7 +225,7 @@ class GraphicsView(QGraphicsView):
                         y + node_height / 2 - text_rect.height() / 2)
 
             # 如果不是最后一个节点，绘制箭头
-            if i < len(nodes) - 1:
+            if i < len(node_objects) - 1:
                 next_x = x + node_width + horizontal_spacing
                 self._draw_arrow(x + node_width, y + node_height / 2,
                                  next_x, y + node_height / 2)
@@ -148,6 +280,9 @@ class GraphicsView(QGraphicsView):
                                    element_width + 20, frame_height + 20)
         frame.setPen(QPen(Qt.black, 2))
 
+        # 检查是否需要高亮栈顶
+        highlight_top = 'stack_top' in self.highlighted_nodes
+
         # 绘制栈元素（从底部到顶部）
         for i in range(stack.capacity):
             x = start_x
@@ -158,8 +293,14 @@ class GraphicsView(QGraphicsView):
 
             if i <= stack.top:
                 # 有数据的元素
-                rect.setBrush(QBrush(QColor(144, 238, 144)))  # 浅绿色
-                rect.setPen(QPen(Qt.black, 2))
+                # 检查是否是栈顶且需要高亮
+                if i == stack.top and highlight_top:
+                    highlight_color = self.highlighted_nodes.get('stack_top')
+                    rect.setBrush(QBrush(highlight_color))
+                    rect.setPen(QPen(Qt.red, 3))
+                else:
+                    rect.setBrush(QBrush(QColor(144, 238, 144)))  # 浅绿色
+                    rect.setPen(QPen(Qt.black, 2))
 
                 # 绘制数据
                 text = self.scene.addText(str(stack.data[i]))
@@ -210,6 +351,10 @@ class GraphicsView(QGraphicsView):
         # 获取队列数据
         queue_data = queue.get_all_data()
 
+        # 检查是否需要高亮队头或队尾
+        highlight_front = 'queue_front' in self.highlighted_nodes
+        highlight_rear = 'queue_rear' in self.highlighted_nodes
+
         # 绘制队列框架
         frame_width = len(queue_data) * (element_width + spacing) if queue_data else element_width
         frame = self.scene.addRect(start_x - 10, start_y - 10,
@@ -221,10 +366,29 @@ class GraphicsView(QGraphicsView):
             x = start_x + i * (element_width + spacing)
             y = start_y
 
+            # 检查是否需要高亮
+            is_front = (i == 0) and highlight_front
+            is_rear = (i == len(queue_data) - 1) and highlight_rear
+            
+            if is_front:
+                highlight_color = self.highlighted_nodes.get('queue_front')
+                rect_color = highlight_color
+                border_color = Qt.red
+                border_width = 3
+            elif is_rear:
+                highlight_color = self.highlighted_nodes.get('queue_rear')
+                rect_color = highlight_color
+                border_color = Qt.red
+                border_width = 3
+            else:
+                rect_color = QColor(255, 218, 185)  # 桃色
+                border_color = Qt.black
+                border_width = 2
+
             # 绘制队列元素背景
             rect = self.scene.addRect(x, y, element_width, element_height)
-            rect.setBrush(QBrush(QColor(255, 218, 185)))  # 桃色
-            rect.setPen(QPen(Qt.black, 2))
+            rect.setBrush(QBrush(rect_color))
+            rect.setPen(QPen(border_color, border_width))
 
             # 绘制数据
             text = self.scene.addText(str(data))
@@ -476,10 +640,21 @@ class GraphicsView(QGraphicsView):
             node_width = 40
             node_height = 40
 
+            # 检查是否需要高亮
+            highlight_color = self.highlighted_nodes.get(node['id'])
+            if highlight_color:
+                node_color = highlight_color
+                border_color = Qt.red
+                border_width = 3
+            else:
+                node_color = QColor(255, 182, 193)  # 浅粉色
+                border_color = Qt.black
+                border_width = 2
+
             # 绘制节点圆形
             ellipse = self.scene.addEllipse(x - node_width / 2, y - node_height / 2, node_width, node_height)
-            ellipse.setBrush(QBrush(QColor(255, 182, 193)))  # 浅粉色
-            ellipse.setPen(QPen(Qt.black, 2))
+            ellipse.setBrush(QBrush(node_color))
+            ellipse.setPen(QPen(border_color, border_width))
 
             # 绘制节点数据
             text = self.scene.addText(str(node['data']))
@@ -506,10 +681,21 @@ class GraphicsView(QGraphicsView):
             node_width = 40
             node_height = 40
 
+            # 检查是否需要高亮
+            highlight_color = self.highlighted_nodes.get(node['id'])
+            if highlight_color:
+                node_color = highlight_color
+                border_color = Qt.red
+                border_width = 3
+            else:
+                node_color = QColor(152, 251, 152)  # 浅绿色
+                border_color = Qt.black
+                border_width = 2
+
             # 绘制节点圆形 - 使用不同颜色区分BST
             ellipse = self.scene.addEllipse(x - node_width / 2, y - node_height / 2, node_width, node_height)
-            ellipse.setBrush(QBrush(QColor(152, 251, 152)))  # 浅绿色
-            ellipse.setPen(QPen(Qt.black, 2))
+            ellipse.setBrush(QBrush(node_color))
+            ellipse.setPen(QPen(border_color, border_width))
 
             # 绘制节点数据
             text = self.scene.addText(str(node['data']))
@@ -696,19 +882,28 @@ class GraphicsView(QGraphicsView):
             node_width = 50
             node_height = 50
 
-            # 根据平衡因子选择颜色
-            balance = node.get('balance', 0)
-            if balance == 0:
-                color = QColor(144, 238, 144)  # 平衡 - 浅绿色
-            elif abs(balance) == 1:
-                color = QColor(255, 255, 150)  # 基本平衡 - 浅黄色
+            # 检查是否需要高亮
+            highlight_color = self.highlighted_nodes.get(node['id'])
+            if highlight_color:
+                node_color = highlight_color
+                border_color = Qt.red
+                border_width = 3
             else:
-                color = QColor(255, 150, 150)  # 不平衡 - 浅红色
+                # 根据平衡因子选择颜色
+                balance = node.get('balance', 0)
+                if balance == 0:
+                    node_color = QColor(144, 238, 144)  # 平衡 - 浅绿色
+                elif abs(balance) == 1:
+                    node_color = QColor(255, 255, 150)  # 基本平衡 - 浅黄色
+                else:
+                    node_color = QColor(255, 150, 150)  # 不平衡 - 浅红色
+                border_color = Qt.black
+                border_width = 2
 
             # 绘制节点圆形
             ellipse = self.scene.addEllipse(x - node_width / 2, y - node_height / 2, node_width, node_height)
-            ellipse.setBrush(QBrush(color))
-            ellipse.setPen(QPen(Qt.black, 2))
+            ellipse.setBrush(QBrush(node_color))
+            ellipse.setPen(QPen(border_color, border_width))
 
             # 绘制节点数据（值和平衡因子）
             text = self.scene.addText(str(node['data']))

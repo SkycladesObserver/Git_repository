@@ -17,6 +17,8 @@ class BinarySearchTree:
             'id': f"bst_{self.node_counter}"  # 唯一标识符
         }
 
+        print(f"插入节点: {data}, ID: bst_{self.node_counter}")  # 调试输出
+
         if self.root is None:
             self.root = BinaryTreeNode(node_data)
             return True

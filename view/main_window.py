@@ -1,5 +1,6 @@
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QStatusBar
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor
+from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QStatusBar, QLineEdit
+from PyQt5.QtCore import Qt, QTimer
 from .graphics_view import GraphicsView
 from .controls import ControlsPanel
 from model.linked_list import LinkedList
@@ -13,6 +14,14 @@ from PyQt5.QtWidgets import QMenu, QAction, QMessageBox
 from utils.serializer import DataStructureSerializer
 from view.file_dialog import FileDialog
 from PyQt5.QtWidgets import QDialog, QApplication, QMainWindow  # 根据实际需要导入其他组件
+from controller.animation_controller import AnimationController
+from controller.unified_animation_controller import UnifiedAnimationController
+from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QStatusBar,
+                             QMenu, QAction, QMessageBox, QDialog, QApplication,
+                             QGroupBox, QComboBox, QSlider, QPushButton, QLabel)
+from PyQt5.QtCore import Qt
+from controller.algorithm_animator import AlgorithmAnimator
+
 
 class MainWindow(QMainWindow):
     """主窗口"""
@@ -30,6 +39,18 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self.connect_signals()
         self.create_menus()
+        # 添加统一动画控制器（新的动画系统）
+        self.unified_animation_controller = UnifiedAnimationController(self)
+        self.init_unified_animation_ui()
+        self.connect_unified_animation_signals()
+        # 添加动画控制器（保留旧系统以兼容）
+        self.animation_controller = AnimationController(self)
+        self.init_animation_ui()
+        self.connect_animation_signals()
+        # 添加算法动画控制器
+        self.algorithm_animator = AlgorithmAnimator(self)
+        self.init_algorithm_animation_ui()
+        self.connect_algorithm_animation_signals()
 
     def create_menus(self):
         """创建菜单栏"""
@@ -292,14 +313,31 @@ class MainWindow(QMainWindow):
     def insert_beginning(self):
         """在链表开头插入节点"""
         value = self.controls_panel.get_value()
-        self.linked_list.insert_at_beginning(value)
-        self.update_display(f"在开头插入节点: {value}")
+        # 使用动画控制器 - 只添加步骤，不自动播放
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'linked_list_insert_beginning',
+                {'value': value}
+            )
+            # 不自动播放，让用户手动控制
+            self.status_bar.showMessage(f"已添加插入操作，请使用'下一步'按钮单步执行")
+        else:
+            # 兼容模式：立即执行
+            self.linked_list.insert_at_beginning(value)
+            self.update_display(f"在开头插入节点: {value}")
 
     def insert_end(self):
         """在链表末尾插入节点"""
         value = self.controls_panel.get_value()
-        self.linked_list.insert_at_end(value)
-        self.update_display(f"在末尾插入节点: {value}")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'linked_list_insert_end',
+                {'value': value}
+            )
+            self.status_bar.showMessage(f"已添加插入操作，请使用'下一步'按钮单步执行")
+        else:
+            self.linked_list.insert_at_end(value)
+            self.update_display(f"在末尾插入节点: {value}")
 
     def insert_at_position(self):
         """在指定位置插入节点"""
@@ -307,8 +345,15 @@ class MainWindow(QMainWindow):
         position = self.controls_panel.get_position()
 
         try:
-            self.linked_list.insert_at_position(position, value)
-            self.update_display(f"在位置 {position} 插入节点: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'linked_list_insert_position',
+                    {'value': value, 'position': position}
+                )
+                self.status_bar.showMessage(f"已添加插入操作，请使用'下一步'按钮单步执行")
+            else:
+                self.linked_list.insert_at_position(position, value)
+                self.update_display(f"在位置 {position} 插入节点: {value}")
         except IndexError as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
@@ -317,61 +362,117 @@ class MainWindow(QMainWindow):
         position = self.controls_panel.get_position()
 
         try:
-            deleted_node = self.linked_list.delete_at_position(position)
-            self.update_display(f"删除位置 {position} 的节点: {deleted_node.data}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'linked_list_delete_position',
+                    {'position': position}
+                )
+                self.status_bar.showMessage(f"已添加删除操作，请使用'下一步'按钮单步执行")
+            else:
+                deleted_node = self.linked_list.delete_at_position(position)
+                self.update_display(f"删除位置 {position} 的节点: {deleted_node.data}")
         except IndexError as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
     def clear_list(self):
         """清空链表"""
-        self.linked_list.clear()
-        self.update_display("链表已清空")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'linked_list_clear',
+                {}
+            )
+            self.status_bar.showMessage(f"已添加清空操作，请使用'下一步'按钮单步执行")
+        else:
+            self.linked_list.clear()
+            self.update_display("链表已清空")
 
     # 栈操作方法
     def push(self):
         """入栈操作"""
         value = self.controls_panel.stack_value_spin.value()
         try:
-            self.stack.push(value)
-            self.update_display(f"入栈: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'stack_push',
+                    {'value': value}
+                )
+                self.status_bar.showMessage(f"已添加入栈操作，请使用'下一步'按钮单步执行")
+            else:
+                self.stack.push(value)
+                self.update_display(f"入栈: {value}")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
     def pop(self):
         """出栈操作"""
         try:
-            value = self.stack.pop()
-            self.update_display(f"出栈: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'stack_pop',
+                    {}
+                )
+                self.status_bar.showMessage(f"已添加出栈操作，请使用'下一步'按钮单步执行")
+            else:
+                value = self.stack.pop()
+                self.update_display(f"出栈: {value}")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
     def clear_stack(self):
         """清空栈"""
-        self.stack = Stack()
-        self.update_display("栈已清空")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'stack_clear',
+                {}
+            )
+            self.status_bar.showMessage(f"已添加清空操作，请使用'下一步'按钮单步执行")
+        else:
+            self.stack = Stack()
+            self.update_display("栈已清空")
 
     # 队列操作方法
     def enqueue(self):
         """入队操作"""
         value = self.controls_panel.queue_value_spin.value()
         try:
-            self.queue.enqueue(value)
-            self.update_display(f"入队: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'queue_enqueue',
+                    {'value': value}
+                )
+                self.status_bar.showMessage(f"已添加入队操作，请使用'下一步'按钮单步执行")
+            else:
+                self.queue.enqueue(value)
+                self.update_display(f"入队: {value}")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
     def dequeue(self):
         """出队操作"""
         try:
-            value = self.queue.dequeue()
-            self.update_display(f"出队: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'queue_dequeue',
+                    {}
+                )
+                self.status_bar.showMessage(f"已添加出队操作，请使用'下一步'按钮单步执行")
+            else:
+                value = self.queue.dequeue()
+                self.update_display(f"出队: {value}")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
     def clear_queue(self):
         """清空队列"""
-        self.queue = Queue()
-        self.update_display("队列已清空")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'queue_clear',
+                {}
+            )
+            self.status_bar.showMessage(f"已添加清空操作，请使用'下一步'按钮单步执行")
+        else:
+            self.queue = Queue()
+            self.update_display("队列已清空")
 
     # 二叉树操作方法
 
@@ -380,11 +481,18 @@ class MainWindow(QMainWindow):
         value = self.controls_panel.bt_value_spin.value()
 
         try:
-            success = self.binary_tree.insert_level_order(value)
-            if success:
-                self.update_display(f"二叉树层次插入: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'binary_tree_insert',
+                    {'value': value}
+                )
+                self.status_bar.showMessage(f"已添加插入操作，请使用'下一步'按钮单步执行")
             else:
-                self.status_bar.showMessage("错误: 无法插入节点")
+                success = self.binary_tree.insert_level_order(value)
+                if success:
+                    self.update_display(f"二叉树层次插入: {value}")
+                else:
+                    self.status_bar.showMessage("错误: 无法插入节点")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
@@ -404,34 +512,62 @@ class MainWindow(QMainWindow):
 
     def clear_binary_tree(self):
         """清空二叉树"""
-        self.binary_tree = BinaryTree()
-        self.update_display("二叉树已清空")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'binary_tree_clear',
+                {}
+            )
+            self.status_bar.showMessage(f"已添加清空操作，请使用'下一步'按钮单步执行")
+        else:
+            self.binary_tree = BinaryTree()
+            self.update_display("二叉树已清空")
 
     # 二叉搜索树操作方法
     def bst_insert(self):
         """BST插入"""
         value = self.controls_panel.bst_value_spin.value()
         try:
-            self.bst.insert(value)
-            self.update_display(f"BST插入: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'bst_insert',
+                    {'value': value}
+                )
+                self.status_bar.showMessage(f"已添加插入操作，请使用'下一步'按钮单步执行")
+            else:
+                self.bst.insert(value)
+                self.update_display(f"BST插入: {value}")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
     def bst_search(self):
         """BST查找"""
         value = self.controls_panel.bst_value_spin.value()
-        node = self.bst.search(value)
-        if node:
-            self.update_display(f"BST查找: 找到 {value}")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'bst_search',
+                {'value': value}
+            )
+            self.status_bar.showMessage(f"已添加查找操作，请使用'下一步'按钮单步执行")
         else:
-            self.update_display(f"BST查找: 未找到 {value}")
+            node = self.bst.search(value)
+            if node:
+                self.update_display(f"BST查找: 找到 {value}")
+            else:
+                self.update_display(f"BST查找: 未找到 {value}")
 
     def bst_delete(self):
         """BST删除"""
         value = self.controls_panel.bst_value_spin.value()
         try:
-            self.bst.delete(value)
-            self.update_display(f"BST删除: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'bst_delete',
+                    {'value': value}
+                )
+                self.status_bar.showMessage(f"已添加删除操作，请使用'下一步'按钮单步执行")
+            else:
+                self.bst.delete(value)
+                self.update_display(f"BST删除: {value}")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
@@ -450,8 +586,15 @@ class MainWindow(QMainWindow):
 
     def clear_bst(self):
         """清空BST"""
-        self.bst = BinarySearchTree()
-        self.update_display("二叉搜索树已清空")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'bst_clear',
+                {}
+            )
+            self.status_bar.showMessage(f"已添加清空操作，请使用'下一步'按钮单步执行")
+        else:
+            self.bst = BinarySearchTree()
+            self.update_display("二叉搜索树已清空")
 
     # 哈夫曼树操作方法
     def huffman_build_from_text(self):
@@ -522,26 +665,47 @@ class MainWindow(QMainWindow):
         """AVL插入"""
         value = self.controls_panel.avl_value_spin.value()
         try:
-            self.avl_tree.insert(value)
-            self.update_display(f"AVL插入: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'avl_insert',
+                    {'value': value}
+                )
+                self.status_bar.showMessage(f"已添加插入操作，请使用'下一步'按钮单步执行")
+            else:
+                self.avl_tree.insert(value)
+                self.update_display(f"AVL插入: {value}")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
     def avl_search(self):
         """AVL查找"""
         value = self.controls_panel.avl_value_spin.value()
-        node = self.avl_tree.search(value)
-        if node:
-            self.update_display(f"AVL查找: 找到 {value}")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'avl_search',
+                {'value': value}
+            )
+            self.status_bar.showMessage(f"已添加查找操作，请使用'下一步'按钮单步执行")
         else:
-            self.update_display(f"AVL查找: 未找到 {value}")
+            node = self.avl_tree.search(value)
+            if node:
+                self.update_display(f"AVL查找: 找到 {value}")
+            else:
+                self.update_display(f"AVL查找: 未找到 {value}")
 
     def avl_delete(self):
         """AVL删除"""
         value = self.controls_panel.avl_value_spin.value()
         try:
-            self.avl_tree.delete(value)
-            self.update_display(f"AVL删除: {value}")
+            if hasattr(self, 'unified_animation_controller'):
+                self.unified_animation_controller.add_operation(
+                    'avl_delete',
+                    {'value': value}
+                )
+                self.status_bar.showMessage(f"已添加删除操作，请使用'下一步'按钮单步执行")
+            else:
+                self.avl_tree.delete(value)
+                self.update_display(f"AVL删除: {value}")
         except Exception as e:
             self.status_bar.showMessage(f"错误: {str(e)}")
 
@@ -560,8 +724,15 @@ class MainWindow(QMainWindow):
 
     def clear_avl(self):
         """清空AVL树"""
-        self.avl_tree = AVLTree()
-        self.update_display("AVL树已清空")
+        if hasattr(self, 'unified_animation_controller'):
+            self.unified_animation_controller.add_operation(
+                'avl_clear',
+                {}
+            )
+            self.status_bar.showMessage(f"已添加清空操作，请使用'下一步'按钮单步执行")
+        else:
+            self.avl_tree = AVLTree()
+            self.update_display("AVL树已清空")
 
     def update_display(self, message=None):
         """更新显示"""
@@ -726,3 +897,439 @@ class MainWindow(QMainWindow):
             self.status_bar.showMessage(f"指令错误: {str(e)}")
 
         self.controls_panel.clear_command()
+
+    def init_animation_ui(self):
+        """初始化动画演示界面"""
+        # 在控制面板中添加动画演示区域
+        if hasattr(self.controls_panel, 'layout'):
+            # 创建动画演示组
+            animation_group = QGroupBox("动画演示")
+            animation_layout = QVBoxLayout()
+
+            # 演示选择
+            demo_layout = QHBoxLayout()
+            demo_layout.addWidget(QLabel("选择演示:"))
+            self.demo_combo = QComboBox()
+            self.demo_combo.addItems([
+                "链表基本操作",
+                "栈的LIFO特性",
+                "队列的FIFO特性",
+                "二叉搜索树构建",
+                "AVL树平衡演示",
+                "哈夫曼编码"
+            ])
+            demo_layout.addWidget(self.demo_combo)
+            demo_layout.addStretch()
+
+            # 速度控制
+            speed_layout = QHBoxLayout()
+            speed_layout.addWidget(QLabel("速度:"))
+            self.speed_slider = QSlider(Qt.Horizontal)
+            self.speed_slider.setRange(100, 3000)
+            self.speed_slider.setValue(1000)
+            self.speed_slider.setTickPosition(QSlider.TicksBelow)
+            self.speed_slider.setTickInterval(500)
+            speed_layout.addWidget(self.speed_slider)
+            self.speed_label = QLabel("1.0s")
+            speed_layout.addWidget(self.speed_label)
+
+            # 控制按钮
+            button_layout = QHBoxLayout()
+            self.load_demo_btn = QPushButton("加载演示")
+            self.play_btn = QPushButton("播放")
+            self.pause_btn = QPushButton("暂停")
+            self.stop_btn = QPushButton("停止")
+            self.prev_btn = QPushButton("上一步")
+            self.next_btn = QPushButton("下一步")
+
+            button_layout.addWidget(self.load_demo_btn)
+            button_layout.addWidget(self.play_btn)
+            button_layout.addWidget(self.pause_btn)
+            button_layout.addWidget(self.stop_btn)
+            button_layout.addWidget(self.prev_btn)
+            button_layout.addWidget(self.next_btn)
+
+            # 进度显示
+            progress_layout = QHBoxLayout()
+            progress_layout.addWidget(QLabel("进度:"))
+            self.progress_label = QLabel("0/0")
+            self.step_description = QLabel("请选择演示内容")
+            self.step_description.setWordWrap(True)
+
+            progress_layout.addWidget(self.progress_label)
+            progress_layout.addStretch()
+
+            animation_layout.addLayout(demo_layout)
+            animation_layout.addLayout(speed_layout)
+            animation_layout.addLayout(button_layout)
+            animation_layout.addLayout(progress_layout)
+            animation_layout.addWidget(self.step_description)
+
+            animation_group.setLayout(animation_layout)
+
+            # 添加到控制面板
+            self.controls_panel.layout().insertWidget(2, animation_group)  # 插入到第三个位置
+
+    def connect_animation_signals(self):
+        """连接动画信号"""
+        # 按钮信号
+        self.load_demo_btn.clicked.connect(self.load_demo)
+        self.play_btn.clicked.connect(self.animation_controller.play)
+        self.pause_btn.clicked.connect(self.animation_controller.pause)
+        self.stop_btn.clicked.connect(self.animation_controller.stop)
+        self.prev_btn.clicked.connect(self.animation_controller.previous_step)
+        self.next_btn.clicked.connect(self.animation_controller.next_step)
+        self.speed_slider.valueChanged.connect(self.on_speed_changed)
+
+        # 动画控制器信号
+        self.animation_controller.status_changed.connect(self.on_animation_status_changed)
+        self.animation_controller.step_changed.connect(self.on_animation_step_changed)
+        self.animation_controller.animation_finished.connect(self.on_animation_finished)
+
+    def load_demo(self):
+        """加载演示"""
+        demo_name = self.demo_combo.currentText()
+        step_count = self.animation_controller.load_demo(demo_name)
+        self.progress_label.setText(f"0/{step_count}")
+        self.step_description.setText(f"已加载演示: {demo_name}")
+
+        # 根据演示类型切换数据结构
+        if '链表' in demo_name:
+            self.current_ds = "链表"
+            self.controls_panel.ds_combo.setCurrentText("链表")
+        elif '栈' in demo_name:
+            self.current_ds = "栈"
+            self.controls_panel.ds_combo.setCurrentText("栈")
+        elif '队列' in demo_name:
+            self.current_ds = "队列"
+            self.controls_panel.ds_combo.setCurrentText("队列")
+        elif '二叉搜索树' in demo_name:
+            self.current_ds = "二叉搜索树"
+            self.controls_panel.ds_combo.setCurrentText("二叉搜索树")
+        elif 'AVL树' in demo_name:
+            self.current_ds = "AVL树"
+            self.controls_panel.ds_combo.setCurrentText("AVL树")
+        elif '哈夫曼树' in demo_name:
+            self.current_ds = "哈夫曼树"
+            self.controls_panel.ds_combo.setCurrentText("哈夫曼树")
+
+    def on_speed_changed(self, value):
+        """速度改变"""
+        speed_sec = value / 1000.0
+        self.speed_label.setText(f"{speed_sec:.1f}s")
+        self.animation_controller.set_animation_speed(value)
+
+    def on_animation_status_changed(self, status):
+        """动画状态改变"""
+        self.status_bar.showMessage(status)
+
+    def on_animation_step_changed(self, step, description):
+        """动画步骤改变"""
+        total_steps = len(self.animation_controller.steps)
+        self.progress_label.setText(f"{step}/{total_steps}")
+        self.step_description.setText(description)
+
+    def on_animation_finished(self):
+        """动画完成"""
+        self.progress_label.setText("演示完成")
+        self.step_description.setText("动画演示已结束")
+
+    def init_algorithm_animation_ui(self):
+        """初始化算法动画界面"""
+        # 在控制面板中添加算法动画区域
+        if hasattr(self.controls_panel, 'layout'):
+            # 创建算法动画组
+            algo_group = QGroupBox("算法动画演示")
+            algo_layout = QVBoxLayout()
+
+            # 算法选择
+            algo_select_layout = QHBoxLayout()
+            algo_select_layout.addWidget(QLabel("选择算法:"))
+            self.algo_combo = QComboBox()
+            self.algo_combo.addItems([
+                "二叉搜索树查找",
+                "哈夫曼树构建",
+                "AVL树插入",
+                "AVL树删除"
+            ])
+            algo_select_layout.addWidget(self.algo_combo)
+
+            # 参数输入
+            param_layout = QHBoxLayout()
+            param_layout.addWidget(QLabel("参数:"))
+            self.algo_param_input = QLineEdit()
+            self.algo_param_input.setPlaceholderText("如: 50 或 ABRACADABRA")
+            param_layout.addWidget(self.algo_param_input)
+
+            # 速度控制
+            speed_layout = QHBoxLayout()
+            speed_layout.addWidget(QLabel("速度:"))
+            self.algo_speed_slider = QSlider(Qt.Horizontal)
+            self.algo_speed_slider.setRange(500, 3000)
+            self.algo_speed_slider.setValue(1000)
+            speed_layout.addWidget(self.algo_speed_slider)
+            self.algo_speed_label = QLabel("1.0s")
+            speed_layout.addWidget(self.algo_speed_label)
+
+            # 控制按钮
+            # 在控制按钮布局中添加测试按钮
+            control_layout = QHBoxLayout()
+            self.start_algo_btn = QPushButton("开始演示")
+            self.pause_algo_btn = QPushButton("暂停")
+            self.stop_algo_btn = QPushButton("停止")
+            self.step_algo_btn = QPushButton("单步执行")
+            self.test_algo_btn = QPushButton("测试动画")  # 添加测试按钮
+
+            control_layout.addWidget(self.start_algo_btn)
+            control_layout.addWidget(self.pause_algo_btn)
+            control_layout.addWidget(self.stop_algo_btn)
+            control_layout.addWidget(self.step_algo_btn)
+            control_layout.addWidget(self.test_algo_btn)
+
+            # 进度和状态显示
+            status_layout = QVBoxLayout()
+            self.algo_progress_label = QLabel("准备就绪")
+            self.algo_step_description = QLabel("请选择算法并设置参数")
+            self.algo_step_description.setWordWrap(True)
+            self.algo_step_description.setStyleSheet("background-color: #f0f0f0; padding: 5px;")
+
+            status_layout.addWidget(self.algo_progress_label)
+            status_layout.addWidget(self.algo_step_description)
+
+            algo_layout.addLayout(algo_select_layout)
+            algo_layout.addLayout(param_layout)
+            algo_layout.addLayout(speed_layout)
+            algo_layout.addLayout(control_layout)
+            algo_layout.addLayout(status_layout)
+
+            algo_group.setLayout(algo_layout)
+
+            # 添加到控制面板
+            self.controls_panel.layout().insertWidget(2, algo_group)
+
+    def connect_algorithm_animation_signals(self):
+        """连接算法动画信号"""
+        # 按钮信号
+        self.start_algo_btn.clicked.connect(self.start_algorithm_demo)
+        self.pause_algo_btn.clicked.connect(self.algorithm_animator.pause_algorithm)
+        self.stop_algo_btn.clicked.connect(self.algorithm_animator.stop_algorithm)
+        self.step_algo_btn.clicked.connect(self.algorithm_animator.execute_next_step)
+        self.algo_speed_slider.valueChanged.connect(self.on_algo_speed_changed)
+
+        # 算法动画控制器信号
+        self.algorithm_animator.step_started.connect(self.on_algorithm_step_started)
+        self.algorithm_animator.step_finished.connect(self.on_algorithm_step_finished)
+        self.algorithm_animator.algorithm_finished.connect(self.on_algorithm_finished)
+        self.algorithm_animator.highlight_nodes.connect(self.graphics_view.highlight_nodes)
+
+        # 添加测试按钮连接
+        self.test_algo_btn.clicked.connect(self.test_animation)
+
+    def start_algorithm_demo(self):
+        """开始算法演示"""
+        algorithm_name = self.algo_combo.currentText()
+        param_text = self.algo_param_input.text().strip()
+
+        # 解析参数
+        data = {}
+        if algorithm_name == "二叉搜索树查找":
+            try:
+                data['value'] = int(param_text) if param_text else 50
+            except ValueError:
+                QMessageBox.warning(self, "参数错误", "请输入有效的整数值")
+                return
+        elif algorithm_name == "哈夫曼树构建":
+            data['text'] = param_text if param_text else "ABRACADABRA"
+        elif algorithm_name == "AVL树插入":
+            try:
+                if param_text:
+                    data['values'] = [int(x.strip()) for x in param_text.split(',')]
+                else:
+                    data['values'] = [10, 20, 30, 40, 50]
+            except ValueError:
+                QMessageBox.warning(self, "参数错误", "请输入有效的整数值，用逗号分隔")
+                return
+        elif algorithm_name == "AVL树删除":
+            try:
+                data['value'] = int(param_text) if param_text else 20
+            except ValueError:
+                QMessageBox.warning(self, "参数错误", "请输入有效的整数值")
+                return
+
+        # 确保选择正确的数据结构
+        if "二叉搜索树" in algorithm_name:
+            self.current_ds = "二叉搜索树"
+            self.controls_panel.ds_combo.setCurrentText("二叉搜索树")
+        elif "哈夫曼树" in algorithm_name:
+            self.current_ds = "哈夫曼树"
+            self.controls_panel.ds_combo.setCurrentText("哈夫曼树")
+        elif "AVL树" in algorithm_name:
+            self.current_ds = "AVL树"
+            self.controls_panel.ds_combo.setCurrentText("AVL树")
+
+        # 开始算法演示
+        self.algorithm_animator.start_algorithm(algorithm_name, data)
+        self.algo_progress_label.setText(f"正在演示: {algorithm_name}")
+
+    def on_algo_speed_changed(self, value):
+        """算法速度改变"""
+        speed_sec = value / 1000.0
+        self.algo_speed_label.setText(f"{speed_sec:.1f}s")
+        self.algorithm_animator.set_speed(value)
+
+    def on_algorithm_step_started(self, step_index, description):
+        """算法步骤开始"""
+        self.algo_step_description.setText(description)
+        self.status_bar.showMessage(f"步骤 {step_index + 1}: {description}")
+
+    def on_algorithm_step_finished(self, step_index, description):
+        """算法步骤完成"""
+        # 可以在这里添加步骤完成后的处理
+        pass
+
+    def on_algorithm_finished(self, algorithm_name):
+        """算法完成"""
+        self.algo_progress_label.setText("演示完成")
+        self.algo_step_description.setText(f"{algorithm_name} 演示已结束")
+        self.status_bar.showMessage(f"{algorithm_name} 演示完成")
+
+    def init_unified_animation_ui(self):
+        """初始化统一动画控制UI"""
+        # 在控制面板中添加统一动画控制区域
+        if hasattr(self.controls_panel, 'layout'):
+            # 创建统一动画控制组
+            unified_anim_group = QGroupBox("动画控制")
+            unified_anim_layout = QVBoxLayout()
+            
+            # 速度控制
+            speed_layout = QHBoxLayout()
+            speed_layout.addWidget(QLabel("速度:"))
+            self.unified_speed_slider = QSlider(Qt.Horizontal)
+            self.unified_speed_slider.setRange(200, 3000)
+            self.unified_speed_slider.setValue(1000)
+            self.unified_speed_slider.setTickPosition(QSlider.TicksBelow)
+            self.unified_speed_slider.setTickInterval(500)
+            speed_layout.addWidget(self.unified_speed_slider)
+            self.unified_speed_label = QLabel("1.0s")
+            speed_layout.addWidget(self.unified_speed_label)
+            
+            # 控制按钮
+            button_layout = QHBoxLayout()
+            self.unified_play_btn = QPushButton("播放")
+            self.unified_pause_btn = QPushButton("暂停")
+            self.unified_stop_btn = QPushButton("停止")
+            self.unified_prev_btn = QPushButton("上一步")
+            self.unified_next_btn = QPushButton("下一步")
+            
+            button_layout.addWidget(self.unified_play_btn)
+            button_layout.addWidget(self.unified_pause_btn)
+            button_layout.addWidget(self.unified_stop_btn)
+            button_layout.addWidget(self.unified_prev_btn)
+            button_layout.addWidget(self.unified_next_btn)
+            
+            # 进度显示
+            progress_layout = QHBoxLayout()
+            progress_layout.addWidget(QLabel("进度:"))
+            self.unified_progress_label = QLabel("0/0")
+            progress_layout.addWidget(self.unified_progress_label)
+            progress_layout.addStretch()
+            
+            # 步骤描述
+            self.unified_step_description = QLabel("准备就绪")
+            self.unified_step_description.setWordWrap(True)
+            self.unified_step_description.setStyleSheet("background-color: #f0f0f0; padding: 5px;")
+            
+            unified_anim_layout.addLayout(speed_layout)
+            unified_anim_layout.addLayout(button_layout)
+            unified_anim_layout.addLayout(progress_layout)
+            unified_anim_layout.addWidget(self.unified_step_description)
+            
+            unified_anim_group.setLayout(unified_anim_layout)
+            
+            # 添加到控制面板（插入到第一个位置）
+            self.controls_panel.layout().insertWidget(1, unified_anim_group)
+    
+    def connect_unified_animation_signals(self):
+        """连接统一动画控制信号"""
+        # 按钮信号
+        self.unified_play_btn.clicked.connect(self.unified_animation_controller.play)
+        self.unified_pause_btn.clicked.connect(self.unified_animation_controller.pause)
+        self.unified_stop_btn.clicked.connect(self.unified_animation_controller.stop)
+        self.unified_prev_btn.clicked.connect(self.unified_animation_controller.previous_step)
+        self.unified_next_btn.clicked.connect(self.unified_animation_controller.next_step)
+        self.unified_speed_slider.valueChanged.connect(self.on_unified_speed_changed)
+        
+        # 动画控制器信号
+        self.unified_animation_controller.step_changed.connect(self.on_unified_step_changed)
+        self.unified_animation_controller.animation_finished.connect(self.on_unified_animation_finished)
+        self.unified_animation_controller.status_changed.connect(self.on_unified_status_changed)
+        self.unified_animation_controller.highlight_requested.connect(self.graphics_view.highlight_nodes)
+    
+    def on_unified_speed_changed(self, value):
+        """统一动画速度改变"""
+        speed_sec = value / 1000.0
+        self.unified_speed_label.setText(f"{speed_sec:.1f}s")
+        self.unified_animation_controller.set_animation_speed(value)
+    
+    def on_unified_step_changed(self, step_index, description):
+        """统一动画步骤改变"""
+        total_steps = len(self.unified_animation_controller.steps)
+        if total_steps > 0:
+            self.unified_progress_label.setText(f"{step_index}/{total_steps}")
+        else:
+            self.unified_progress_label.setText("0/0")
+        self.unified_step_description.setText(description)
+    
+    def on_unified_animation_finished(self):
+        """统一动画完成"""
+        self.unified_progress_label.setText("完成")
+        self.unified_step_description.setText("动画演示已结束")
+        self.status_bar.showMessage("动画演示完成")
+    
+    def on_unified_status_changed(self, status):
+        """统一动画状态改变"""
+        self.status_bar.showMessage(status)
+
+    def test_animation(self):
+        """测试动画功能"""
+        # 创建一个简单的二叉搜索树用于测试
+        self.current_ds = "二叉搜索树"
+        self.controls_panel.ds_combo.setCurrentText("二叉搜索树")
+
+        # 清空并重新构建测试树
+        self.bst.clear()
+        test_values = [50, 30, 70, 20, 40, 60, 80]
+        for value in test_values:
+            self.bst.insert(value)
+
+        # 更新显示
+        self.update_display("创建测试二叉搜索树")
+
+        # 手动触发一个简单的动画序列
+        QTimer.singleShot(1000, self._animate_step1)
+        QTimer.singleShot(2000, self._animate_step2)
+        QTimer.singleShot(3000, self._animate_step3)
+
+    def _animate_step1(self):
+        """动画步骤1"""
+        # 获取树的根节点ID
+        if self.bst.root:
+            root_id = self.bst.root.data['id']
+            self.graphics_view.highlight_nodes([root_id], QColor(255, 0, 0), "高亮根节点")
+            self.status_bar.showMessage("步骤1: 高亮根节点")
+
+    def _animate_step2(self):
+        """动画步骤2"""
+        # 获取左子树节点ID
+        if self.bst.root and self.bst.root.left:
+            left_id = self.bst.root.left.data['id']
+            self.graphics_view.highlight_nodes([left_id], QColor(0, 255, 0), "高亮左子节点")
+            self.status_bar.showMessage("步骤2: 高亮左子节点")
+
+    def _animate_step3(self):
+        """动画步骤3"""
+        # 获取右子树节点ID
+        if self.bst.root and self.bst.root.right:
+            right_id = self.bst.root.right.data['id']
+            self.graphics_view.highlight_nodes([right_id], QColor(0, 0, 255), "高亮右子节点")
+            self.status_bar.showMessage("步骤3: 高亮右子节点")
